@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
-import { useRegisterStudent, useRooms, useMeters, useSettings, useHostelFeeForRoom, useInitPayment, usePolicies } from "@/lib/queries";
+import { useRegisterStudent, useRooms, useMeters, useSettings, useHostelFeeForRoom, usePolicies } from "@/lib/queries";
 import { uploadToImgur } from "@/lib/imgur";
 import { ALL_COURSES, LEVELS } from "@/lib/constants";
 
@@ -417,7 +417,8 @@ function WhatsAppStep({ form, resolvedMeter, roomFeeData, hostelFee, settings, s
   studentId: string; onEnter: () => void;
 }) {
   const [joined, setJoined] = useState(false);
-  const initPayment = useInitPayment();
+
+  const channelUrl = settings?.whatsapp_channel_url ?? "https://whatsapp.com/channel/";
 
   return (
     <div className="space-y-5">
@@ -438,12 +439,12 @@ function WhatsAppStep({ form, resolvedMeter, roomFeeData, hostelFee, settings, s
           You <strong>must</strong> join to stay informed.
         </p>
         <a
-          href="https://www.whatsapp.com/channel/0029Vb87HDIGufIrFACxHO1j"
+          href={channelUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-soft hover:opacity-90 transition">
           <MessageCircle className="h-4 w-4" />
-          Tap here to join SME Hostels channel
+          Tap here to join {settings?.hostel_name ?? "SME Hostels"} channel
         </a>
       </div>
 

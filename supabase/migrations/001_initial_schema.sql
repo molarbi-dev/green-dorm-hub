@@ -1,5 +1,5 @@
 -- SME Hostels — Initial Schema
--- Run this in the Supabase SQL editor or via the Supabase CLI.
+-- Run this entire script in the Supabase SQL editor (Project → SQL Editor → New query → paste → Run).
 
 -- ── Extensions ────────────────────────────────────────────────────────────────
 create extension if not exists "pgcrypto";
@@ -25,7 +25,7 @@ create table if not exists rooms (
 
 -- ── Students ──────────────────────────────────────────────────────────────────
 create table if not exists students (
-  id              text primary key,           -- e.g. SME-2024-001
+  id              text primary key,
   full_name       text not null,
   course          text not null default '',
   level           text not null default '100',
@@ -35,7 +35,10 @@ create table if not exists students (
   whatsapp        text not null default '',
   guardian_name   text not null default '',
   guardian_phone  text not null default '',
-  username        text not null default '',
+  username        text not null unique,
+  password_hash   text not null default '',
+  gender          text check (gender in ('male', 'female', 'other')),
+  avatar_url      text,
   reg_status      text not null default 'unpaid'
                     check (reg_status in ('paid', 'partial', 'unpaid')),
   reg_paid        numeric not null default 0,
@@ -50,9 +53,18 @@ create table if not exists students (
   updated_at      timestamptz not null default now()
 );
 
+-- ── Admins ────────────────────────────────────────────────────────────────────
+create table if not exists admins (
+  id            text primary key default gen_random_uuid()::text,
+  username      text not null unique,
+  password_hash text not null,
+  full_name     text not null default '',
+  created_at    timestamptz not null default now()
+);
+
 -- ── Payments ──────────────────────────────────────────────────────────────────
 create table if not exists payments (
-  id            text primary key,             -- receipt number, e.g. R-1001
+  id            text primary key,
   student_id    text not null references students(id) on delete cascade,
   type          text not null check (type in ('registration', 'hostel')),
   amount        numeric not null,
@@ -61,40 +73,19 @@ create table if not exists payments (
   created_at    timestamptz not null default now()
 );
 
--- ── Store Items ───────────────────────────────────────────────────────────────
-create table if not exists store_items (
-  id          text primary key,
-  name        text not null,
-  emoji       text not null default '📦',
-  description text not null default '',
-  price       numeric not null,
-  unit        text not null default 'piece',
-  stock       int  not null default 0,
-  category    text not null default 'Other',
-  available   boolean not null default true,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
-);
-
--- ── Orders ────────────────────────────────────────────────────────────────────
-create table if not exists orders (
-  id          text primary key,
-  student_id  text not null references students(id) on delete cascade,
-  note        text,
-  total       numeric not null,
-  status      text not null default 'pending'
-                check (status in ('pending', 'confirmed', 'ready', 'delivered', 'cancelled')),
-  unread      boolean not null default true,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
-);
-
--- ── Order Items ───────────────────────────────────────────────────────────────
-create table if not exists order_items (
-  id        text primary key default gen_random_uuid()::text,
-  order_id  text not null references orders(id) on delete cascade,
-  item_id   text not null references store_items(id) on delete restrict,
-  qty       int  not null check (qty > 0)
+-- ── Payment Receipts (student-uploaded proof) ─────────────────────────────────
+create table if not exists payment_receipts (
+  id           text primary key default gen_random_uuid()::text,
+  student_id   text not null references students(id) on delete cascade,
+  image_url    text not null,
+  amount       numeric,
+  description  text,
+  status       text not null default 'pending'
+                 check (status in ('pending', 'verified', 'rejected')),
+  admin_note   text,
+  reviewed_at  timestamptz,
+  uploaded_at  timestamptz not null default now(),
+  created_at   timestamptz not null default now()
 );
 
 -- ── SMS Messages ──────────────────────────────────────────────────────────────
@@ -110,59 +101,120 @@ create table if not exists sms_messages (
   created_at       timestamptz not null default now()
 );
 
+-- ── Electricity Top-up Logs ───────────────────────────────────────────────────
+create table if not exists electricity_logs (
+  id           text primary key default gen_random_uuid()::text,
+  student_id   text not null references students(id) on delete cascade,
+  meter_no     text not null references meters(no) on delete cascade,
+  amount       numeric not null,
+  confirmation text not null default '',
+  sms_status   text not null default 'pending',
+  logged_at    timestamptz not null default now()
+);
+
+-- ── Room Pricing (per capacity tier) ─────────────────────────────────────────
+create table if not exists room_pricing (
+  capacity    int     primary key,
+  hostel_fee  numeric not null default 0,
+  updated_at  timestamptz not null default now()
+);
+
+-- Seed default pricing tiers
+insert into room_pricing (capacity, hostel_fee) values
+  (2, 8000),
+  (3, 8000),
+  (4, 6000)
+on conflict (capacity) do nothing;
+
+-- ── Hostel Policies ───────────────────────────────────────────────────────────
+create table if not exists policies (
+  id         serial primary key,
+  title      text    not null,
+  body       text    not null,
+  active     boolean not null default true,
+  sort_order int     not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- ── Internships ───────────────────────────────────────────────────────────────
+create table if not exists internships (
+  id               serial primary key,
+  company_name     text    not null,
+  industry         text,
+  description      text,
+  contact_person   text,
+  contact_phone    text,
+  contact_email    text,
+  contact_whatsapp text,
+  address          text,
+  active           boolean not null default true,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
 -- ── Settings (single row) ─────────────────────────────────────────────────────
 create table if not exists settings (
-  id                int  primary key default 1 check (id = 1),  -- enforces single row
-  hostel_name       text not null default 'SME Hostels',
-  address           text not null default '',
-  contact_phone     text not null default '',
-  contact_whatsapp  text not null default '',
-  email             text not null default '',
-  bank_name         text not null default '',
-  account_name      text not null default '',
-  account_number    text not null default '',
-  branch            text not null default '',
-  momo_number       text not null default '',
-  momo_name         text not null default '',
-  registration_fee  numeric not null default 200,
-  hostel_fee        numeric not null default 4500,
-  sms_sender_id     text not null default 'SMEHOSTEL',
-  brand_primary     text not null default '#4CAF50',
-  brand_soft        text not null default '#66BB6A',
-  brand_mint        text not null default '#A5D6A7',
-  updated_at        timestamptz not null default now()
+  id                    int  primary key default 1 check (id = 1),
+  hostel_name           text not null default 'SME Hostels',
+  address               text not null default '',
+  contact_phone         text not null default '',
+  contact_whatsapp      text not null default '',
+  email                 text not null default '',
+  bank_name             text not null default '',
+  account_name          text not null default '',
+  account_number        text not null default '',
+  branch                text not null default '',
+  momo_number           text not null default '',
+  momo_name             text not null default '',
+  registration_fee      numeric not null default 200,
+  hostel_fee            numeric not null default 4500,
+  sms_sender_id         text not null default 'SMEHOSTEL',
+  brand_primary         text not null default '#4CAF50',
+  brand_soft            text not null default '#66BB6A',
+  brand_mint            text not null default '#A5D6A7',
+  emergency_security    text,
+  emergency_medical     text,
+  office_hours          text,
+  whatsapp_channel_url  text,
+  announcement          text,
+  updated_at            timestamptz not null default now()
 );
 
 -- Seed the single settings row
 insert into settings (id) values (1) on conflict (id) do nothing;
 
 -- ── Indexes ───────────────────────────────────────────────────────────────────
-create index if not exists idx_students_room_no    on students(room_no);
-create index if not exists idx_students_meter_no   on students(meter_no);
-create index if not exists idx_students_reg_status on students(reg_status);
-create index if not exists idx_students_check_status on students(check_status);
-create index if not exists idx_payments_student_id on payments(student_id);
-create index if not exists idx_payments_type       on payments(type);
-create index if not exists idx_orders_student_id   on orders(student_id);
-create index if not exists idx_orders_status       on orders(status);
-create index if not exists idx_orders_unread       on orders(unread);
-create index if not exists idx_order_items_order   on order_items(order_id);
-create index if not exists idx_rooms_meter_no      on rooms(meter_no);
+create index if not exists idx_students_room_no       on students(room_no);
+create index if not exists idx_students_meter_no      on students(meter_no);
+create index if not exists idx_students_reg_status    on students(reg_status);
+create index if not exists idx_students_check_status  on students(check_status);
+create index if not exists idx_payments_student_id    on payments(student_id);
+create index if not exists idx_payments_type          on payments(type);
+create index if not exists idx_receipts_student_id    on payment_receipts(student_id);
+create index if not exists idx_receipts_status        on payment_receipts(status);
+create index if not exists idx_elec_logs_meter_no     on electricity_logs(meter_no);
+create index if not exists idx_elec_logs_student_id   on electricity_logs(student_id);
+create index if not exists idx_rooms_meter_no         on rooms(meter_no);
+create index if not exists idx_internships_active     on internships(active);
 
 -- ── Row Level Security ────────────────────────────────────────────────────────
--- All access goes through the service role key (server-side only).
--- RLS is enabled but only the service role bypass is used.
-alter table students      enable row level security;
-alter table rooms         enable row level security;
-alter table meters        enable row level security;
-alter table payments      enable row level security;
-alter table store_items   enable row level security;
-alter table orders        enable row level security;
-alter table order_items   enable row level security;
-alter table sms_messages  enable row level security;
-alter table settings      enable row level security;
+-- All access goes through the service_role key (server-side only).
+-- RLS is enabled — the service role bypasses it automatically.
+alter table students          enable row level security;
+alter table admins            enable row level security;
+alter table rooms             enable row level security;
+alter table meters            enable row level security;
+alter table payments          enable row level security;
+alter table payment_receipts  enable row level security;
+alter table sms_messages      enable row level security;
+alter table electricity_logs  enable row level security;
+alter table room_pricing      enable row level security;
+alter table policies          enable row level security;
+alter table internships       enable row level security;
+alter table settings          enable row level security;
 
--- ── Updated_at trigger ────────────────────────────────────────────────────────
+-- ── updated_at trigger ────────────────────────────────────────────────────────
 create or replace function set_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -172,25 +224,16 @@ end;
 $$;
 
 create or replace trigger trg_students_updated_at
-  before update on students
-  for each row execute function set_updated_at();
-
+  before update on students for each row execute function set_updated_at();
 create or replace trigger trg_rooms_updated_at
-  before update on rooms
-  for each row execute function set_updated_at();
-
+  before update on rooms for each row execute function set_updated_at();
 create or replace trigger trg_meters_updated_at
-  before update on meters
-  for each row execute function set_updated_at();
-
-create or replace trigger trg_store_items_updated_at
-  before update on store_items
-  for each row execute function set_updated_at();
-
-create or replace trigger trg_orders_updated_at
-  before update on orders
-  for each row execute function set_updated_at();
-
+  before update on meters for each row execute function set_updated_at();
 create or replace trigger trg_settings_updated_at
-  before update on settings
-  for each row execute function set_updated_at();
+  before update on settings for each row execute function set_updated_at();
+create or replace trigger trg_policies_updated_at
+  before update on policies for each row execute function set_updated_at();
+create or replace trigger trg_internships_updated_at
+  before update on internships for each row execute function set_updated_at();
+create or replace trigger trg_room_pricing_updated_at
+  before update on room_pricing for each row execute function set_updated_at();

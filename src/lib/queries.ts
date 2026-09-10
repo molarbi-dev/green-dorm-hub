@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { getStudents, getStudent, createStudent, updateStudent, deleteStudent, checkInStudent, checkOutStudent, acceptPolicy } from "./api/students.functions";
 import { getRooms, createRoom, updateRoom, deleteRoom, getMeters, createMeter, updateMeter, deleteMeter } from "./api/rooms.functions";
 import { getPayments, recordPayment } from "./api/payments.functions";
-import { getStoreItems, createStoreItem, updateStoreItem, deleteStoreItem, getOrders, placeOrder, updateOrderStatus, markOrderRead } from "./api/store.functions";
 import { getSmsMessages, sendSmsToStudents, resolveSmsRecipients, testSms } from "./api/sms.functions";
 import { getSettings, updateSettings } from "./api/settings.functions";
 
@@ -20,8 +19,6 @@ export const QK = {
   rooms: ["rooms"] as const,
   meters: ["meters"] as const,
   payments: (studentId?: string) => ["payments", studentId ?? "all"] as const,
-  storeItems: ["store-items"] as const,
-  orders: (studentId?: string) => ["orders", studentId ?? "all"] as const,
   sms: ["sms"] as const,
   settings: ["settings"] as const,
 };
@@ -207,78 +204,6 @@ export function useRecordPayment() {
   });
 }
 
-// ── Store ─────────────────────────────────────────────────────────────────────
-
-export function useStoreItems() {
-  return useQuery({ queryKey: QK.storeItems, queryFn: () => getStoreItems() });
-}
-
-export function useCreateStoreItem() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Parameters<typeof createStoreItem>[0]["data"]) => createStoreItem({ data }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.storeItems }); toast.success("Item added"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useUpdateStoreItem() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Parameters<typeof updateStoreItem>[0]["data"]) => updateStoreItem({ data }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.storeItems }); toast.success("Item updated"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useDeleteStoreItem() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => deleteStoreItem({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.storeItems }); toast.success("Item deleted"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useOrders(studentId?: string) {
-  return useQuery({
-    queryKey: QK.orders(studentId),
-    queryFn: () => getOrders({ data: { studentId } }),
-  });
-}
-
-export function usePlaceOrder() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Parameters<typeof placeOrder>[0]["data"]) => placeOrder({ data }),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: QK.orders() });
-      qc.invalidateQueries({ queryKey: QK.orders(vars.student_id) });
-      qc.invalidateQueries({ queryKey: QK.storeItems }); // stock changed
-      toast.success("Order placed! Management has been notified.");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useUpdateOrderStatus() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Parameters<typeof updateOrderStatus>[0]["data"]) =>
-      updateOrderStatus({ data }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.orders() }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useMarkOrderRead() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => markOrderRead({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QK.orders() }),
-  });
-}
-
 // ── SMS ───────────────────────────────────────────────────────────────────────
 
 export function useSmsMessages() {
@@ -323,32 +248,9 @@ export function useUpdateSettings() {
   });
 }
 
-// ── Paystack ──────────────────────────────────────────────────────────────────
-
-import { initPaystackPayment, verifyPaystackPayment } from "./api/paystack.functions";
-import { logElectricityTopup, getElectricityLogs } from "./api/electricity.functions";
-
-export function useInitPayment() {
-  return useMutation({
-    mutationFn: (data: Parameters<typeof initPaystackPayment>[0]["data"]) =>
-      initPaystackPayment({ data }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useVerifyPayment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (reference: string) => verifyPaystackPayment({ data: { reference } }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.students });
-      qc.invalidateQueries({ queryKey: QK.payments() });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
 // ── Electricity Logs ──────────────────────────────────────────────────────────
+
+import { logElectricityTopup, getElectricityLogs } from "./api/electricity.functions";
 
 export const QK_ELEC = {
   logs: (meterNo?: string) => ["electricity-logs", meterNo ?? "all"] as const,
@@ -567,6 +469,64 @@ export function useDeletePolicy() {
   return useMutation({
     mutationFn: (id: number) => deletePolicy({ data: { id } }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK_POLICIES.public }); qc.invalidateQueries({ queryKey: QK_POLICIES.admin }); toast.success("Policy deleted"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Internships ───────────────────────────────────────────────────────────────
+
+import { getInternships, getActiveInternships, createInternship, updateInternship, deleteInternship } from "./api/internships.functions";
+
+export const QK_INTERNSHIPS = {
+  all: ["internships"] as const,
+  active: ["internships", "active"] as const,
+};
+
+export function useInternships() {
+  return useQuery({ queryKey: QK_INTERNSHIPS.all, queryFn: () => getInternships() });
+}
+
+export function useActiveInternships() {
+  return useQuery({ queryKey: QK_INTERNSHIPS.active, queryFn: () => getActiveInternships() });
+}
+
+export function useCreateInternship() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof createInternship>[0]["data"]) =>
+      createInternship({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_INTERNSHIPS.all });
+      qc.invalidateQueries({ queryKey: QK_INTERNSHIPS.active });
+      toast.success("Internship added");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateInternship() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof updateInternship>[0]["data"]) =>
+      updateInternship({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_INTERNSHIPS.all });
+      qc.invalidateQueries({ queryKey: QK_INTERNSHIPS.active });
+      toast.success("Internship updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteInternship() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteInternship({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_INTERNSHIPS.all });
+      qc.invalidateQueries({ queryKey: QK_INTERNSHIPS.active });
+      toast.success("Internship removed");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

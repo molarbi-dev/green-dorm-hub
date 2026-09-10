@@ -36,7 +36,7 @@ export const loginStudent = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!student) throw new Error("Invalid username or password.");
-    const hash = (student as any).password_hash ?? "";
+    const hash = student.password_hash ?? "";
     if (!hash) throw new Error("Account not fully set up. Please contact management.");
     const valid = await verifyPassword(data.password, hash);
     if (!valid) throw new Error("Invalid username or password.");
@@ -64,9 +64,11 @@ export const createFirstAdmin = createServerFn({ method: "POST" })
     const db = getSupabaseAdmin();
 
     // Only allow if no admins exist yet
-    const { count } = await db
+    const { count, error: countErr } = await db
       .from("admins")
       .select("id", { count: "exact", head: true });
+
+    if (countErr) throw new Error(`Database error during setup: ${countErr.message}`);
 
     if ((count ?? 0) > 0) {
       throw new Error("An admin account already exists. Use the admin panel to add more.");

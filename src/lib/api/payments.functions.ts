@@ -59,9 +59,10 @@ export const recordPayment = createServerFn({ method: "POST" })
       .from("settings")
       .select("registration_fee, hostel_fee")
       .eq("id", 1)
-      .single();
+      .maybeSingle();
 
     if (setErr) throw new Error(setErr.message);
+    if (!settings) throw new Error("System settings not configured. Please complete setup before recording payments.");
 
     if (data.type === "registration") {
       const newPaid = (student.reg_paid ?? 0) + data.amount;

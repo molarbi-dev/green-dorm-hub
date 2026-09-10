@@ -2,10 +2,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, Users, DoorOpen, Zap, Wallet, Building2, ClipboardList,
-  ShoppingBag, MessageSquare, BarChart3, Settings as SettingsIcon, LogOut,
+  MessageSquare, BarChart3, Settings as SettingsIcon, LogOut,
   ChevronLeft, ChevronRight, Bell, Search, Plus, Edit3, Trash2, X, Save,
-  CheckCircle2, XCircle, AlertTriangle, Copy, Check, Send, Image as ImageIcon,
-  Video, FileText, ArrowRight, MoreHorizontal, Lock, Loader2, Upload, Receipt,
+  CheckCircle2, XCircle, AlertTriangle, Copy, Check, Send,
+  FileText, ArrowRight, MoreHorizontal, Lock, Receipt, Briefcase,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar,
@@ -14,15 +14,13 @@ import {
 import { toast } from "sonner";
 import logo from "@/assets/logo.jpg";
 import { fmtGHS, fmtTime, fmtDate, initials } from "@/lib/hostel-store";
-import type { StudentRow, RoomRow, MeterRow, StoreItemRow, OrderRow } from "@/lib/database.types";
+import type { StudentRow, RoomRow, MeterRow } from "@/lib/database.types";
 import { ALL_COURSES, LEVELS } from "@/lib/constants";
 import {
   useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent,
   useRooms, useCreateRoom, useUpdateRoom, useDeleteRoom,
   useMeters, useCreateMeter, useUpdateMeter, useDeleteMeter,
   usePayments, useRecordPayment,
-  useStoreItems, useCreateStoreItem, useUpdateStoreItem, useDeleteStoreItem,
-  useOrders, useUpdateOrderStatus, useMarkOrderRead,
   useSmsMessages, useSendSms, useResolveRecipients,
   useSettings, useUpdateSettings,
   useElectricityLogs,
@@ -31,6 +29,7 @@ import {
   useTestSms,
   useAllReceipts, useReviewReceipt,
   useAllPoliciesAdmin, useCreatePolicy, useUpdatePolicy, useDeletePolicy,
+  useInternships, useCreateInternship, useUpdateInternship, useDeleteInternship,
 } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
@@ -41,7 +40,7 @@ export const Route = createFileRoute("/admin")({
 type Nav =
   | "dashboard" | "students" | "rooms" | "meters"
   | "regfees" | "hostelfees" | "checkins"
-  | "store" | "sms" | "reports" | "settings" | "receipts" | "policies";
+  | "sms" | "reports" | "settings" | "receipts" | "policies" | "internships";
 
 const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -51,10 +50,10 @@ const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "regfees", label: "Registration Fees", icon: Wallet },
   { key: "hostelfees", label: "Hostel Fees", icon: Building2 },
   { key: "checkins", label: "Check-In Records", icon: ClipboardList },
-  { key: "store", label: "Store", icon: ShoppingBag },
   { key: "sms", label: "SMS Center", icon: MessageSquare },
   { key: "reports", label: "Reports", icon: BarChart3 },
   { key: "receipts", label: "Receipts", icon: Receipt },
+  { key: "internships", label: "Internships", icon: Briefcase },
   { key: "policies", label: "Policies", icon: FileText },
   { key: "settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -69,8 +68,6 @@ function Admin() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { data: settings } = useSettings();
-  const { data: orders = [] } = useOrders();
-  const unreadOrders = orders.filter((o) => o.unread).length;
 
   function switchUser() { nav({ to: "/" }); }
 
@@ -84,14 +81,11 @@ function Admin() {
         <div className="flex-1 space-y-0.5 overflow-y-auto px-2">
           {NAV.map((n) => {
             const active = n.key === page;
-            const badge = n.key === "store" ? unreadOrders : 0;
             return (
               <button key={n.key} onClick={() => setPage(n.key)} title={collapsed ? n.label : undefined}
                 className={`relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-gradient-primary text-white shadow-soft" : "text-foreground/80 hover:bg-muted/50"}`}>
                 <n.icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span className="truncate">{n.label}</span>}
-                {badge > 0 && !collapsed && <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{badge}</span>}
-                {badge > 0 && collapsed && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />}
               </button>
             );
           })}
@@ -116,17 +110,17 @@ function Admin() {
             {page === "regfees" && <FeesPage type="registration" />}
             {page === "hostelfees" && <FeesPage type="hostel" />}
             {page === "checkins" && <CheckInsPage />}
-            {page === "store" && <StoreAdminPage />}
             {page === "sms" && <SmsPage />}
             {page === "reports" && <ReportsPage />}
             {page === "receipts" && <ReceiptsPage />}
+            {page === "internships" && <InternshipsPage />}
             {page === "policies" && <PoliciesPage />}
             {page === "settings" && <SettingsPage />}
           </div>
         </div>
       </main>
 
-      <MobileNav page={page} onChange={setPage} onMore={() => setMobileNavOpen(true)} unread={unreadOrders} />
+      <MobileNav page={page} onChange={setPage} onMore={() => setMobileNavOpen(true)} />
       {mobileNavOpen && <MobileMore current={page} onPick={(p) => { setPage(p); setMobileNavOpen(false); }} onClose={() => setMobileNavOpen(false)} onSignOut={switchUser} />}
     </div>
   );
@@ -136,7 +130,6 @@ function Admin() {
 
 function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () => void }) {
   const { data: students = [] } = useStudents();
-  const { data: orders = [] } = useOrders();
   const { data: smsMessages = [] } = useSmsMessages();
   const { data: settings } = useSettings();
   const { data: rooms = [] } = useRooms();
@@ -146,7 +139,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
   const checkedIn = students.filter((s) => s.check_status === "in").length;
   const regPaid = students.filter((s) => s.reg_status === "paid").length;
   const hostelPaid = students.filter((s) => s.hostel_paid >= (settings?.hostel_fee ?? 0)).length;
-  const unreadOrders = orders.filter((o) => o.unread).length;
   const smsThisMonth = smsMessages.filter((m) => new Date(m.sent_at).getMonth() === new Date().getMonth()).length;
 
   // Real chart data from payments
@@ -174,18 +166,13 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
 
   // Recent activity from real data
   const recentActivity = useMemo(() => {
-    const items: { icon: typeof ShoppingBag; text: string; time: string; color: string }[] = [];
-    const recentOrders = [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 2);
-    recentOrders.forEach((o) => {
-      const st = students.find((s) => s.id === o.student_id);
-      items.push({ icon: ShoppingBag, text: `New order from ${st?.full_name ?? "Unknown"}`, time: fmtTime(new Date(o.created_at).getTime()), color: "text-amber-600 bg-amber-100" });
-    });
-    const recentPayments = [...allPayments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()).slice(0, 2);
+    const items: { icon: typeof Wallet; text: string; time: string; color: string }[] = [];
+    const recentPayments = [...allPayments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()).slice(0, 4);
     recentPayments.forEach((p) => {
       items.push({ icon: Wallet, text: `Payment recorded · ${fmtGHS(p.amount)}`, time: fmtTime(new Date(p.payment_date).getTime()), color: "text-sky-600 bg-sky-100" });
     });
-    return items.slice(0, 4);
-  }, [orders, allPayments, students]);
+    return items;
+  }, [allPayments]);
 
   return (
     <div className="space-y-6">
@@ -195,11 +182,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
               <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-primary" /></span>Live
             </span>
-            {unreadOrders > 0 && (
-              <button onClick={() => onNav("store")} className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-soft hover:opacity-95">
-                <Bell className="h-3.5 w-3.5" /> {unreadOrders} new order{unreadOrders > 1 ? "s" : ""}
-              </button>
-            )}
             <button onClick={onSwitch} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium"><LogOut className="h-3.5 w-3.5" /> Switch</button>
           </div>
         }
@@ -212,7 +194,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
         <Kpi icon={Building2} label="Hostel Fees Paid" value={hostelPaid} color="primary" onClick={() => onNav("hostelfees")} />
         <Kpi icon={DoorOpen} label="Total Rooms" value={rooms.length} onClick={() => onNav("rooms")} />
         <Kpi icon={Zap} label="Meter Groups" value={meters.length} color="violet" onClick={() => onNav("meters")} />
-        <Kpi icon={ShoppingBag} label="Store Orders" value={orders.length} color="amber" badge={unreadOrders} onClick={() => onNav("store")} />
         <Kpi icon={MessageSquare} label="SMS This Month" value={smsThisMonth} color="violet" onClick={() => onNav("sms")} />
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -253,7 +234,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
           <div className="space-y-2">
             <QuickAction icon={Plus} label="Add Student" onClick={() => onNav("students")} />
             <QuickAction icon={Wallet} label="Record Payment" onClick={() => onNav("hostelfees")} />
-            <QuickAction icon={ShoppingBag} label="View Orders" badge={unreadOrders} onClick={() => onNav("store")} />
             <QuickAction icon={MessageSquare} label="Send SMS" onClick={() => onNav("sms")} />
             <QuickAction icon={BarChart3} label="View Reports" onClick={() => onNav("reports")} />
           </div>
@@ -824,230 +804,88 @@ function CheckInsPage() {
   );
 }
 
-/* =========================  STORE ADMIN  ========================= */
+/* =========================  RECEIPTS  ========================= */
 
-function StoreAdminPage() {
-  const { data: orders = [] } = useOrders();
-  const { data: items = [] } = useStoreItems();
-  const { data: students = [] } = useStudents();
-  const updateStatusMut = useUpdateOrderStatus();
-  const markReadMut = useMarkOrderRead();
-  const createItemMut = useCreateStoreItem();
-  const updateItemMut = useUpdateStoreItem();
-  const deleteItemMut = useDeleteStoreItem();
-  const [tab, setTab] = useState<"orders"|"inventory">("orders");
-  const [statusFilter, setStatusFilter] = useState<"all"|"pending"|"confirmed"|"ready"|"delivered"|"cancelled">("all");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [editItem, setEditItem] = useState<StoreItemRow | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [del, setDel] = useState<StoreItemRow | null>(null);
+function ReceiptsPage() {
+  const { data: allReceipts = [] } = useAllReceipts();
+  const reviewMut = useReviewReceipt();
+  const [statusFilter, setStatusFilter] = useState<"all"|"pending"|"verified"|"rejected">("pending");
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<"verified"|"rejected">("verified");
+  const [reviewNote, setReviewNote] = useState("");
 
-  const unread = orders.filter((o) => o.unread).length;
-  const pending = orders.filter((o) => o.status === "pending").length;
-  const todayOrders = orders.filter((o) => new Date(o.created_at).toDateString() === new Date().toDateString());
-  const todayRevenue = todayOrders.reduce((s, o) => s + o.total, 0);
-  const filtered = statusFilter === "all" ? orders : orders.filter((o) => o.status === statusFilter);
+  const filtered = statusFilter === "all" ? allReceipts : allReceipts.filter((r: any) => r.status === statusFilter);
 
-  return (
-    <div className="space-y-4">
-      <StickyHeader title="Hostel Store" subtitle={`${orders.length} orders · ${items.length} items`}
-        actions={
-          <div className="flex items-center gap-2">
-            {unread > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700"><Bell className="h-3 w-3" /> {unread} new</span>}
-            {tab === "inventory" && <button onClick={() => setAdding(true)} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"><Plus className="h-4 w-4" /> Add Item</button>}
-          </div>
-        } />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Total Orders" value={orders.length} />
-        <MiniStat label="Pending" value={pending} accent="amber" />
-        <MiniStat label="Today's Orders" value={todayOrders.length} accent="primary" />
-        <MiniStat label="Today's Revenue" value={fmtGHS(todayRevenue)} accent="primary" />
-      </div>
-      <div className="inline-flex rounded-full bg-muted p-1">
-        {(["orders","inventory"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize transition ${tab === t ? "bg-white shadow-soft" : "text-muted-foreground"}`}>{t}</button>
-        ))}
-      </div>
-      {tab === "orders" ? (
-        <>
-          <div className="-mx-1 flex flex-wrap gap-1.5 px-1">
-            {(["all","pending","confirmed","ready","delivered","cancelled"] as const).map((s) => (
-              <button key={s} onClick={() => setStatusFilter(s)} className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-white text-foreground border border-border"}`}>{s}</button>
-            ))}
-          </div>
-          <div className="space-y-2">
-            {filtered.map((o) => {
-              const st = students.find((s) => s.id === o.student_id);
-              const open = expanded === o.id;
-              const orderItems = (o as any).order_items as { item_id: string; qty: number }[] ?? [];
-              return (
-                <div key={o.id} className={`squircle bg-white p-4 shadow-soft ${o.unread ? "border-l-4 border-primary" : ""}`}>
-                  <button onClick={() => { setExpanded(open ? null : o.id); if (o.unread) markReadMut.mutate(o.id); }} className="flex w-full items-center gap-3 text-left">
-                    {o.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-sm font-bold">{st?.full_name ?? "Unknown"}</div>
-                        <span className="text-xs text-muted-foreground">{st?.room_no}</span>
-                        <OrderStatusPill status={o.status} />
-                      </div>
-                      <div className="text-xs text-muted-foreground">{o.id} · {orderItems.reduce((s, l) => s + l.qty, 0)} items · {fmtTime(new Date(o.created_at).getTime())}</div>
-                    </div>
-                    <div className="text-sm font-bold">{fmtGHS(o.total)}</div>
-                  </button>
-                  {open && (
-                    <div className="mt-3 border-t border-border pt-3">
-                      <div className="space-y-1.5 text-sm">
-                        {orderItems.map((l, i) => {
-                          const it = items.find((x) => x.id === l.item_id);
-                          return <div key={i} className="flex justify-between"><span>{it?.emoji} {it?.name} × {l.qty}</span><span className="text-muted-foreground">{fmtGHS((it?.price ?? 0) * l.qty)}</span></div>;
-                        })}
-                      </div>
-                      {o.note && <div className="mt-2 rounded-xl bg-amber-50 p-2 text-xs text-amber-800">Note: {o.note}</div>}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {o.status === "pending" && <button onClick={() => updateStatusMut.mutate({ id: o.id, status: "confirmed" })} className="rounded-full bg-sky-500 px-3 py-1.5 text-xs font-medium text-white">Confirm</button>}
-                        {o.status === "confirmed" && <button onClick={() => updateStatusMut.mutate({ id: o.id, status: "ready" })} className="rounded-full bg-violet-500 px-3 py-1.5 text-xs font-medium text-white">Mark Ready</button>}
-                        {o.status === "ready" && <button onClick={() => updateStatusMut.mutate({ id: o.id, status: "delivered" })} className="rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground">Mark Delivered</button>}
-                        {o.status === "pending" && <button onClick={() => updateStatusMut.mutate({ id: o.id, status: "cancelled" })} className="rounded-full bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive">Cancel</button>}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {filtered.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No orders.</div>}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MiniStat label="Total" value={items.length} />
-            <MiniStat label="Available" value={items.filter((i) => i.available).length} accent="primary" />
-            <MiniStat label="Out of Stock" value={items.filter((i) => i.stock === 0).length} accent="destructive" />
-            <MiniStat label="Low Stock" value={items.filter((i) => i.stock > 0 && i.stock <= 5).length} accent="amber" />
-          </div>
-          <div className="space-y-2">
-            {items.map((it) => (
-              <div key={it.id} className="squircle bg-white p-4 shadow-soft flex items-center gap-3">
-                {(it as any).image_url ? (
-                  <img src={(it as any).image_url} alt={it.name} className="h-14 w-14 rounded-xl object-cover border border-border shrink-0" />
-                ) : (
-                  <div className="grid h-14 w-14 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
-                    <ShoppingBag className="h-5 w-5" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold">{it.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{it.description}</div>
-                  <div className="text-xs text-muted-foreground">{fmtGHS(it.price)} / {it.unit} · Stock: {it.stock}</div>
-                </div>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${it.available && it.stock > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{it.available && it.stock > 0 ? "Available" : "Unavailable"}</span>
-                <button onClick={() => setEditItem(it)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-primary/10"><Edit3 className="h-3.5 w-3.5" /></button>
-                <button onClick={() => setDel(it)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-destructive/10 text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            ))}
-          </div>
-          {(editItem || adding) && (
-            <ItemModal initial={editItem ?? undefined} onClose={() => { setEditItem(null); setAdding(false); }}
-              onSave={(it) => {
-                if (editItem) updateItemMut.mutate({ id: editItem.id, patch: it });
-                else createItemMut.mutate({ ...it, id: "i" + Date.now() } as any);
-                setEditItem(null); setAdding(false);
-              }} />
-          )}
-          {del && <ConfirmModal title={`Delete ${del.name}?`} body="This will remove it from the store."
-            onCancel={() => setDel(null)} onConfirm={() => { deleteItemMut.mutate(del.id); setDel(null); }} />}
-        </>
-      )}
-    </div>
-  );
-}
-
-function OrderStatusPill({ status }: { status: string }) {
-  const map: Record<string, string> = { pending: "bg-amber-100 text-amber-700", confirmed: "bg-sky-100 text-sky-700", ready: "bg-violet-100 text-violet-700", delivered: "bg-primary/10 text-primary", cancelled: "bg-muted text-muted-foreground" };
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${map[status] ?? "bg-muted text-muted-foreground"}`}>{status}</span>;
-}
-
-function ItemModal({ initial, onClose, onSave }: { initial?: StoreItemRow; onClose: () => void; onSave: (it: Partial<StoreItemRow>) => void }) {
-  const [f, setF] = useState({
-    name: initial?.name ?? "",
-    description: initial?.description ?? "",
-    price: initial?.price ?? 0,
-    unit: initial?.unit ?? "piece",
-    stock: initial?.stock ?? 0,
-    category: initial?.category ?? "Other",
-    available: initial?.available ?? true,
-    image_url: (initial as any)?.image_url ?? "",
-  });
-  const [imgPreview, setImgPreview] = useState<string | null>((initial as any)?.image_url ?? null);
-  const [imgUploading, setImgUploading] = useState(false);
-  const [imgError, setImgError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { setImgError("Please select an image file."); return; }
-    if (file.size > 5 * 1024 * 1024) { setImgError("Image must be under 5MB."); return; }
-    setImgError(null);
-    setImgPreview(URL.createObjectURL(file));
-    setImgUploading(true);
-    try {
-      const { uploadToImgur } = await import("@/lib/imgur");
-      const url = await uploadToImgur(file);
-      setF((prev) => ({ ...prev, image_url: url }));
-    } catch (err) {
-      setImgError(err instanceof Error ? err.message : "Upload failed.");
-      setImgPreview(null);
-    } finally {
-      setImgUploading(false);
-    }
+  function handleReview(id: string, status: "verified"|"rejected", note: string) {
+    reviewMut.mutate({ id, status, admin_note: note }, { onSuccess: () => setReviewingId(null) });
   }
 
   return (
-    <Modal title={initial ? "Edit Item" : "Add Item"} onClose={onClose}>
-      {/* Image upload */}
-      <div className="mb-4">
-        <label className="mb-1 block text-xs font-medium">Product image</label>
-        <input ref={fileRef} type="file" accept="image/*" onChange={handleImage} className="hidden" />
-        {imgPreview ? (
-          <div className="flex items-center gap-3">
-            <img src={imgPreview} alt="" className="h-20 w-20 rounded-xl object-cover border border-border shadow-soft" />
-            <div className="flex-1">
-              {imgUploading && <div className="flex items-center gap-2 text-xs text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</div>}
-              {f.image_url && !imgUploading && <div className="text-xs text-primary font-medium">Image uploaded</div>}
-              {imgError && <div className="text-xs text-destructive">{imgError}</div>}
-              <button type="button" onClick={() => { setImgPreview(null); setF((p) => ({ ...p, image_url: "" })); setImgError(null); }}
-                className="mt-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/70">Remove</button>
+    <div className="space-y-4">
+      <StickyHeader title="Payment Receipts" subtitle="Student submissions under review" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MiniStat label="Total" value={allReceipts.length} />
+        <MiniStat label="Pending" value={allReceipts.filter((r: any) => r.status === "pending").length} accent="amber" />
+        <MiniStat label="Verified" value={allReceipts.filter((r: any) => r.status === "verified").length} accent="primary" />
+        <MiniStat label="Rejected" value={allReceipts.filter((r: any) => r.status === "rejected").length} accent="destructive" />
+      </div>
+      <div className="-mx-1 flex flex-wrap gap-1.5 px-1">
+        {(["all","pending","verified","rejected"] as const).map((s) => (
+          <button key={s} onClick={() => setStatusFilter(s)} className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-white text-foreground border border-border"}`}>{s}</button>
+        ))}
+      </div>
+      <div className="space-y-2">
+        {filtered.map((r: any) => (
+          <div key={r.id} className="squircle bg-white p-4 shadow-soft">
+            <div className="flex gap-3">
+              {r.image_url ? (
+                <img src={r.image_url} alt="Receipt" className="h-20 w-20 rounded-xl object-cover border border-border shrink-0" />
+              ) : (
+                <div className="grid h-20 w-20 place-items-center rounded-xl bg-muted text-muted-foreground shrink-0"><Receipt className="h-6 w-6" /></div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-bold">{r.students?.full_name ?? "Unknown"}</div>
+                  <span className="text-xs text-muted-foreground">{r.students?.room_no}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${r.status === "pending" ? "bg-amber-100 text-amber-700" : r.status === "verified" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{r.status}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">{r.id} · {r.amount ? fmtGHS(r.amount) : "Amount not specified"}</div>
+                {r.description && <div className="mt-1 text-xs text-muted-foreground">{r.description}</div>}
+                <div className="text-xs text-muted-foreground">{fmtDate(new Date(r.uploaded_at).getTime())}</div>
+              </div>
+              {r.status === "pending" && (
+                <button onClick={() => { setReviewingId(r.id); setReviewStatus("verified"); setReviewNote(""); }} className="whitespace-nowrap rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90">Review</button>
+              )}
+            </div>
+            {r.admin_note && <div className="mt-3 rounded-xl bg-blue-50 border border-blue-200 p-2 text-xs text-blue-800">Admin note: {r.admin_note}</div>}
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No receipts found.</div>}
+      </div>
+      {reviewingId && (
+        <Modal title="Review Receipt" onClose={() => setReviewingId(null)}>
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium">Decision</label>
+              <div className="flex gap-2">
+                <button onClick={() => setReviewStatus("verified")} className={`flex-1 rounded-full px-3 py-2 text-xs font-medium ${reviewStatus === "verified" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>✓ Verify</button>
+                <button onClick={() => setReviewStatus("rejected")} className={`flex-1 rounded-full px-3 py-2 text-xs font-medium ${reviewStatus === "rejected" ? "bg-destructive text-white" : "bg-muted text-foreground"}`}>✕ Reject</button>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">Note (optional)</label>
+              <textarea value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} rows={2} placeholder="e.g. Amount mismatch, unclear receipt, etc." className="w-full rounded-xl border border-border bg-white p-2.5 text-sm" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setReviewingId(null)} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
+              <button onClick={() => handleReview(reviewingId, reviewStatus, reviewNote)} disabled={reviewMut.isPending} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+                {reviewMut.isPending ? "Reviewing…" : "Submit"}
+              </button>
             </div>
           </div>
-        ) : (
-          <button type="button" onClick={() => fileRef.current?.click()}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-4 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/5 transition">
-            <Upload className="h-4 w-4" /> Upload product image (optional)
-          </button>
-        )}
-        {imgError && !imgPreview && <div className="mt-1 text-xs text-destructive">{imgError}</div>}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormField label="Name" value={f.name} onChange={(v) => setF({ ...f, name: v })} />
-        <FormField label="Unit" value={f.unit} onChange={(v) => setF({ ...f, unit: v })} />
-        <FormField label="Description" value={f.description} onChange={(v) => setF({ ...f, description: v })} />
-        <FormField label="Price (GHS)" type="number" value={String(f.price)} onChange={(v) => setF({ ...f, price: Number(v) })} />
-        <FormField label="Stock" type="number" value={String(f.stock)} onChange={(v) => setF({ ...f, stock: Number(v) })} />
-        <FormSelect label="Category" value={f.category} onChange={(v) => setF({ ...f, category: v ?? "Other" })} options={["Water","Drinks","Food","Toiletries","Stationery","Other"]} />
-        <label className="flex items-center gap-2 text-sm col-span-full">
-          <input type="checkbox" checked={f.available} onChange={(e) => setF({ ...f, available: e.target.checked })} className="h-4 w-4" /> Available for purchase
-        </label>
-      </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
-        <button onClick={() => onSave(f)} disabled={imgUploading}
-          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
-          {imgUploading ? "Uploading…" : "Save"}
-        </button>
-      </div>
-    </Modal>
+        </Modal>
+      )}
+    </div>
   );
 }
 
@@ -1202,10 +1040,9 @@ function ComposeModal({ students, prefillTemplate, onClose, onSend }: {
 function ReportsPage() {
   const { data: students = [] } = useStudents();
   const { data: payments = [] } = usePayments();
-  const { data: orders = [] } = useOrders();
   const { data: sms = [] } = useSmsMessages();
   const { data: settings } = useSettings();
-  const [tab, setTab] = useState<"students"|"fees"|"store"|"sms"|"electricity">("students");
+  const [tab, setTab] = useState<"students"|"fees"|"sms"|"electricity">("students");
 
   const regFee = settings?.registration_fee ?? 200;
   const hostelFee = settings?.hostel_fee ?? 4500;
@@ -1214,7 +1051,7 @@ function ReportsPage() {
     <div className="space-y-4">
       <StickyHeader title="Reports" subtitle="Live data from Supabase" />
       <div className="inline-flex rounded-full bg-muted p-1">
-        {(["students","fees","store","sms","electricity"] as const).map((t) => (
+        {(["students","fees","sms","electricity"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize transition ${tab === t ? "bg-white shadow-soft" : "text-muted-foreground"}`}>{t}</button>
         ))}
       </div>
@@ -1249,16 +1086,6 @@ function ReportsPage() {
               })}
             </div>
           </SectionPanel>
-        </div>
-      )}
-      {tab === "store" && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MiniStat label="Total Orders" value={orders.length} />
-            <MiniStat label="Delivered" value={orders.filter((o) => o.status === "delivered").length} accent="primary" />
-            <MiniStat label="Pending" value={orders.filter((o) => o.status === "pending").length} accent="amber" />
-            <MiniStat label="Revenue" value={fmtGHS(orders.filter((o) => o.status === "delivered").reduce((a, o) => a + o.total, 0))} accent="primary" />
-          </div>
         </div>
       )}
       {tab === "sms" && (
@@ -1336,7 +1163,26 @@ function SettingsPage() {
           <FormField label="Contact Phone" value={f.contact_phone ?? ""} onChange={(v) => setF({ ...f, contact_phone: v })} />
           <FormField label="WhatsApp" value={f.contact_whatsapp ?? ""} onChange={(v) => setF({ ...f, contact_whatsapp: v })} />
           <FormField label="Email" value={f.email ?? ""} onChange={(v) => setF({ ...f, email: v })} />
+          <FormField label="WhatsApp Channel URL" value={f.whatsapp_channel_url ?? ""} onChange={(v) => setF({ ...f, whatsapp_channel_url: v })} />
         </div>
+      </SectionPanel>
+
+      <SectionPanel title="Student Announcement">
+        <div className="mb-2 text-xs text-muted-foreground">
+          When set, this notice appears as a banner on every student's home page. Clear it to hide the banner.
+        </div>
+        <textarea
+          value={f.announcement ?? ""}
+          onChange={(e) => setF({ ...f, announcement: e.target.value })}
+          rows={3}
+          placeholder="e.g. Water supply will be interrupted on Friday 6pm – 8pm. Store water in advance."
+          className="w-full rounded-xl border border-border bg-white p-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+        />
+        {f.announcement?.trim() && (
+          <button onClick={() => setF({ ...f, announcement: "" })} className="mt-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-muted/70">
+            Clear announcement
+          </button>
+        )}
       </SectionPanel>
 
       <SectionPanel title="Fee Settings">
@@ -1414,6 +1260,139 @@ function SettingsPage() {
         <div className="mt-2 text-xs text-muted-foreground">API key is stored as an environment variable and cannot be edited here.</div>
       </SectionPanel>
     </div>
+  );
+}
+
+/* =========================  INTERNSHIPS  ========================= */
+
+function InternshipsPage() {
+  const { data: internships = [] } = useInternships();
+  const createMut = useCreateInternship();
+  const updateMut = useUpdateInternship();
+  const deleteMut = useDeleteInternship();
+  const [edit, setEdit] = useState<any | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [del, setDel] = useState<any | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <StickyHeader title="Internships" subtitle={`${internships.length} companies listed`}
+        actions={
+          <button onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+            <Plus className="h-4 w-4" /> Add Company
+          </button>
+        }
+      />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <MiniStat label="Total" value={internships.length} />
+        <MiniStat label="Active" value={internships.filter((i: any) => i.active).length} accent="primary" />
+        <MiniStat label="Hidden" value={internships.filter((i: any) => !i.active).length} accent="amber" />
+      </div>
+
+      <div className="space-y-2">
+        {internships.map((co: any) => (
+          <div key={co.id} className={`squircle bg-white p-4 shadow-soft ${!co.active ? "opacity-60" : ""}`}>
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Briefcase className="h-5 w-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-bold">{co.company_name}</div>
+                  {co.industry && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{co.industry}</span>}
+                  {!co.active && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-700">Hidden</span>}
+                </div>
+                {co.description && <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{co.description}</div>}
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                  {co.contact_person && <span>👤 {co.contact_person}</span>}
+                  {co.contact_phone && <span>📞 {co.contact_phone}</span>}
+                  {co.contact_email && <span>✉️ {co.contact_email}</span>}
+                  {co.contact_whatsapp && <span>💬 {co.contact_whatsapp}</span>}
+                  {co.address && <span>📍 {co.address}</span>}
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => setEdit(co)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-primary/10"><Edit3 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setDel(co)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-destructive/10 text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {internships.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">No internship companies added yet.</div>}
+      </div>
+
+      {(adding || edit) && (
+        <InternshipModal
+          initial={edit ?? undefined}
+          onClose={() => { setAdding(false); setEdit(null); }}
+          onSave={(data) => {
+            if (edit) updateMut.mutate({ id: edit.id, patch: data });
+            else createMut.mutate(data as any);
+            setAdding(false); setEdit(null);
+          }}
+        />
+      )}
+      {del && (
+        <ConfirmModal
+          title={`Remove ${del.company_name}?`}
+          body="Students will no longer see this company."
+          onCancel={() => setDel(null)}
+          onConfirm={() => { deleteMut.mutate(del.id); setDel(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function InternshipModal({ initial, onClose, onSave }: {
+  initial?: any;
+  onClose: () => void;
+  onSave: (data: any) => void;
+}) {
+  const [f, setF] = useState({
+    company_name: initial?.company_name ?? "",
+    industry: initial?.industry ?? "",
+    description: initial?.description ?? "",
+    contact_person: initial?.contact_person ?? "",
+    contact_phone: initial?.contact_phone ?? "",
+    contact_email: initial?.contact_email ?? "",
+    contact_whatsapp: initial?.contact_whatsapp ?? "",
+    address: initial?.address ?? "",
+    active: initial?.active ?? true,
+  });
+
+  return (
+    <Modal title={initial ? "Edit Company" : "Add Internship Company"} onClose={onClose}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField label="Company Name *" value={f.company_name} onChange={(v) => setF({ ...f, company_name: v })} />
+        <FormField label="Industry" value={f.industry} onChange={(v) => setF({ ...f, industry: v })} />
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-medium">Description</label>
+          <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2}
+            placeholder="What the company does, type of internship, etc."
+            className="w-full rounded-xl border border-border bg-white p-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+        <FormField label="Contact Person" value={f.contact_person} onChange={(v) => setF({ ...f, contact_person: v })} />
+        <FormField label="Contact Phone" value={f.contact_phone} onChange={(v) => setF({ ...f, contact_phone: v })} />
+        <FormField label="Contact Email" value={f.contact_email} onChange={(v) => setF({ ...f, contact_email: v })} />
+        <FormField label="WhatsApp Number" value={f.contact_whatsapp} onChange={(v) => setF({ ...f, contact_whatsapp: v })} />
+        <div className="sm:col-span-2">
+          <FormField label="Address / Location" value={f.address} onChange={(v) => setF({ ...f, address: v })} />
+        </div>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="h-4 w-4" />
+          Visible to students
+        </label>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
+        <button onClick={() => onSave(f)} disabled={!f.company_name.trim()}
+          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          Save
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1697,11 +1676,10 @@ function FormSelect({ label, value, onChange, options }: { label: string; value:
   );
 }
 
-function MobileNav({ page, onChange, onMore, unread }: { page: Nav; onChange: (p: Nav) => void; onMore: () => void; unread: number }) {
+function MobileNav({ page, onChange, onMore }: { page: Nav; onChange: (p: Nav) => void; onMore: () => void }) {
   const items: { key: Nav; icon: typeof LayoutDashboard; label: string }[] = [
     { key: "dashboard", icon: LayoutDashboard, label: "Home" },
     { key: "students", icon: Users, label: "Students" },
-    { key: "store", icon: ShoppingBag, label: "Store" },
     { key: "sms", icon: MessageSquare, label: "SMS" },
   ];
   return (
@@ -1709,7 +1687,6 @@ function MobileNav({ page, onChange, onMore, unread }: { page: Nav; onChange: (p
       {items.map((i) => (
         <button key={i.key} onClick={() => onChange(i.key)} className={`relative flex flex-1 flex-col items-center gap-0.5 py-3 text-[10px] font-medium transition ${page === i.key ? "text-primary" : "text-muted-foreground"}`}>
           <i.icon className="h-5 w-5" />{i.label}
-          {i.key === "store" && unread > 0 && <span className="absolute right-3 top-2 h-2 w-2 rounded-full bg-destructive" />}
         </button>
       ))}
       <button onClick={onMore} className="flex flex-1 flex-col items-center gap-0.5 py-3 text-[10px] font-medium text-muted-foreground">

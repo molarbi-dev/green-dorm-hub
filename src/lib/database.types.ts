@@ -7,7 +7,6 @@ export type RegStatus = "paid" | "partial" | "unpaid";
 export type CheckStatus = "in" | "out";
 export type PaymentMethod = "bank" | "momo" | "cash";
 export type PaymentType = "registration" | "hostel";
-export type OrderStatus = "pending" | "confirmed" | "ready" | "delivered" | "cancelled";
 export type SmsStatus = "sent" | "delivered" | "failed";
 export type RoomStatus = "available" | "full" | "maintenance";
 
@@ -34,21 +33,6 @@ export interface Database {
         Insert: Omit<PaymentRow, "created_at">;
         Update: Partial<Omit<PaymentRow, "id" | "created_at">>;
       };
-      store_items: {
-        Row: StoreItemRow;
-        Insert: Omit<StoreItemRow, "created_at" | "updated_at">;
-        Update: Partial<Omit<StoreItemRow, "id" | "created_at">>;
-      };
-      orders: {
-        Row: OrderRow;
-        Insert: Omit<OrderRow, "created_at" | "updated_at">;
-        Update: Partial<Omit<OrderRow, "id" | "created_at">>;
-      };
-      order_items: {
-        Row: OrderItemRow;
-        Insert: Omit<OrderItemRow, "id">;
-        Update: Partial<Omit<OrderItemRow, "id">>;
-      };
       sms_messages: {
         Row: SmsMessageRow;
         Insert: Omit<SmsMessageRow, "id" | "created_at">;
@@ -58,6 +42,11 @@ export interface Database {
         Row: SettingsRow;
         Insert: Omit<SettingsRow, "updated_at">;
         Update: Partial<Omit<SettingsRow, "id">>;
+      };
+      internships: {
+        Row: InternshipRow;
+        Insert: Omit<InternshipRow, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<InternshipRow, "id" | "created_at">>;
       };
     };
   };
@@ -74,6 +63,9 @@ export interface StudentRow {
   guardian_name: string;
   guardian_phone: string;
   username: string;
+  password_hash: string;
+  gender: "male" | "female" | "other" | null;
+  avatar_url: string | null;
   reg_status: RegStatus;
   reg_paid: number;
   hostel_paid: number;
@@ -114,38 +106,6 @@ export interface PaymentRow {
   created_at: string;
 }
 
-export interface StoreItemRow {
-  id: string;
-  name: string;
-  emoji: string;
-  description: string;
-  price: number;
-  unit: string;
-  stock: number;
-  category: string;
-  available: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface OrderRow {
-  id: string;
-  student_id: string;
-  note: string | null;
-  total: number;
-  status: OrderStatus;
-  unread: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface OrderItemRow {
-  id: string;
-  order_id: string;
-  item_id: string;
-  qty: number;
-}
-
 export interface SmsMessageRow {
   id: string;
   recipients: string;
@@ -176,5 +136,25 @@ export interface SettingsRow {
   brand_primary: string;
   brand_soft: string;
   brand_mint: string;
+  emergency_security: string | null;
+  emergency_medical: string | null;
+  office_hours: string | null;
+  whatsapp_channel_url: string | null;  // e.g. https://whatsapp.com/channel/...
+  announcement: string | null;          // global notice shown to all students
+  updated_at: string;
+}
+
+export interface InternshipRow {
+  id: number;
+  company_name: string;
+  industry: string | null;
+  description: string | null;
+  contact_person: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  contact_whatsapp: string | null;
+  address: string | null;
+  active: boolean;
+  created_at: string;
   updated_at: string;
 }

@@ -35,10 +35,10 @@ export const logElectricityTopup = createServerFn({ method: "POST" })
       .from("settings")
       .select("sms_sender_id")
       .eq("id", 1)
-      .single();
+      .maybeSingle();
 
     const broadcastMsg =
-      `SME Hostels Meter ${data.meterNo}: ${student.full_name} (${student.room_no}) ` +
+      `SME Hostels Meter ${data.meterNo}: ${student.full_name} (${student.room_no ?? "TBA"}) ` +
       `topped up GHS ${data.amount.toFixed(2)} of prepaid electricity. ` +
       `Confirmation: ${data.confirmation.slice(0, 80)}`;
 

@@ -1,20 +1,19 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
-  Home, User, Wallet, ShoppingBag, MoreHorizontal, LogOut, Bell,
-  CheckCircle2, XCircle, ArrowRight, Copy, Check, Plus, Minus, Trash2,
-  Zap, History, ChevronRight, Phone, MessageCircle, DoorOpen, BookOpen,
-  Edit3, Save, X, ChevronDown, ChevronUp, AlertTriangle, Sparkles,
+  Home, User, Wallet, MoreHorizontal, LogOut,
+  CheckCircle2, XCircle, ArrowRight, Copy, Check,
+  Zap, History, ChevronRight, Phone, MessageCircle, DoorOpen,
+  Edit3, Save, X, ChevronDown, ChevronUp, AlertTriangle,
   Building2, Receipt, ShieldCheck, Upload, Loader2, Camera, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo.jpg";
-import { fmtGHS, fmtTime, fmtDate, initials, type Order, type StoreItem } from "@/lib/hostel-store";
+import { fmtGHS, fmtTime, fmtDate, initials } from "@/lib/hostel-store";
 import { PolicyGate } from "@/components/PolicyGate";
 import {
   useStudent, useCheckIn, useCheckOut, useAcceptPolicy,
   useUpdateStudent, usePayments, useSettings,
-  useStoreItems, useOrders, usePlaceOrder,
   useMeters, useStudents,
   useElectricityLogs, useLogElectricityTopup,
   useStudentReceipts, useSubmitReceipt,
@@ -56,7 +55,7 @@ export const Route = createFileRoute("/portal")({
   component: Portal,
 });
 
-type Tab = "home" | "profile" | "fees" | "store" | "more";
+type Tab = "home" | "profile" | "fees" | "more";
 type SubPage = null | "meter" | "history";
 
 // Current student ID is stored in sessionStorage after login
@@ -182,7 +181,6 @@ function Portal() {
           {tab === "home" && <HomeTab studentId={currentId} onNavTab={setTab} onSub={setSub} />}
           {tab === "profile" && <ProfileTab studentId={currentId} />}
           {tab === "fees" && <FeesTab studentId={currentId} />}
-          {tab === "store" && <StoreTab studentId={currentId} />}
           {tab === "more" && !sub && <MoreTab onSub={setSub} />}
           {tab === "more" && sub === "meter" && <MeterTab studentId={currentId} onBack={() => setSub(null)} />}
           {tab === "more" && sub === "history" && <HistoryTab studentId={currentId} onBack={() => setSub(null)} />}
@@ -199,7 +197,6 @@ function Portal() {
 function HomeTab({ studentId, onNavTab, onSub }: { studentId: string; onNavTab: (t: Tab) => void; onSub: (s: SubPage) => void }) {
   const { data: s } = useStudent(studentId);
   const { data: settings } = useSettings();
-  const { data: orders = [] } = useOrders(studentId);
   const { data: allStudents = [] } = useStudents();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
@@ -209,7 +206,6 @@ function HomeTab({ studentId, onNavTab, onSub }: { studentId: string; onNavTab: 
 
   const regFee = settings.registration_fee;
   const regPct = Math.min(100, (s.reg_paid / regFee) * 100);
-  const pendingOrders = orders.filter((o: any) => o.status !== "delivered" && o.status !== "cancelled").length;
   const meterRoomies = allStudents.filter((x: any) => x.meter_no === s.meter_no).length;
 
   return (
@@ -243,7 +239,6 @@ function HomeTab({ studentId, onNavTab, onSub }: { studentId: string; onNavTab: 
 
       <div className="grid grid-cols-2 gap-3">
         <ActionCard icon={Wallet} label="Fees & Payments" onClick={() => onNavTab("fees")} />
-        <ActionCard icon={ShoppingBag} label="Hostel Store" badge={pendingOrders} onClick={() => onNavTab("store")} />
         <ActionCard icon={Zap} label={`Meter Info (${meterRoomies} sharing)`} onClick={() => { onNavTab("more"); onSub("meter"); }} />
         <ActionCard icon={History} label="Check-In History" onClick={() => { onNavTab("more"); onSub("history"); }} />
       </div>
@@ -583,177 +578,6 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-/* =========================  STORE  ========================= */
-
-const CATEGORIES = ["All", "Water", "Drinks", "Food", "Toiletries", "Stationery", "Other"];
-
-function StoreTab({ studentId }: { studentId: string }) {
-  const { data: items = [] } = useStoreItems();
-  const { data: orders = [] } = useOrders(studentId);
-  const placeOrderMut = usePlaceOrder();
-
-  const [cat, setCat] = useState("All");
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [note, setNote] = useState("");
-  const [drawer, setDrawer] = useState(false);
-
-  const visible = items.filter((i: any) => cat === "All" || i.category === cat);
-  const total = useMemo(() => Object.entries(cart).reduce((s, [id, q]) => s + (items.find((i: any) => i.id === id)?.price ?? 0) * q, 0), [cart, items]);
-  const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
-
-  function add(it: typeof items[0]) { setCart((c) => ({ ...c, [it.id]: (c[it.id] ?? 0) + 1 })); }
-  function dec(id: string) {
-    setCart((c) => { const n = (c[id] ?? 0) - 1; const { [id]: _, ...rest } = c; return n <= 0 ? rest : { ...c, [id]: n }; });
-  }
-
-  function place() {
-    if (cartCount === 0) return;
-    placeOrderMut.mutate({
-      id: "O-" + Math.floor(1000 + Math.random() * 9000),
-      student_id: studentId,
-      note: note || null,
-      total,
-      items: Object.entries(cart).map(([item_id, qty]) => ({ item_id, qty })),
-    }, {
-      onSuccess: () => { setCart({}); setNote(""); setDrawer(false); },
-    });
-  }
-
-  const myOrders = [...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  return (
-    <div className="space-y-4 pb-4">
-      <div className="-mx-4 overflow-x-auto px-4">
-        <div className="flex gap-2">
-          {CATEGORIES.map((c) => (
-            <button key={c} onClick={() => setCat(c)}
-              className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-medium transition ${cat === c ? "border-primary bg-primary text-primary-foreground" : "border-border bg-white text-foreground hover:bg-muted/40"}`}>
-              {c}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {visible.map((it: any) => {
-          const qty = cart[it.id] ?? 0;
-          const lowStock = it.stock <= 5 && it.stock > 0;
-          const out = !it.available || it.stock === 0;
-          return (
-            <div key={it.id} className="squircle bg-white p-3 shadow-soft animate-slide-up">
-              {(it as any).image_url ? (
-                <img src={(it as any).image_url} alt={it.name}
-                  className="h-24 w-full rounded-xl object-cover mb-2" />
-              ) : (
-                <div className="grid h-16 w-full place-items-center rounded-xl bg-primary/10 text-primary mb-2">
-                  <ShoppingBag className="h-6 w-6" />
-                </div>
-              )}
-              <div className="mt-1 text-sm font-semibold leading-tight">{it.name}</div>
-              <div className="text-xs text-muted-foreground line-clamp-2">{it.description}</div>
-              <div className="mt-2 flex items-center justify-between">
-                <div className="text-sm font-bold text-primary">{fmtGHS(it.price)}<span className="text-[10px] font-normal text-muted-foreground">/{it.unit}</span></div>
-                {lowStock && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Low</span>}
-              </div>
-              <div className="mt-2">
-                {out ? (
-                  <div className="rounded-xl bg-muted py-2 text-center text-[11px] text-muted-foreground">Out of stock</div>
-                ) : qty === 0 ? (
-                  <button onClick={() => add(it)} className="w-full rounded-xl bg-primary py-2 text-xs font-semibold text-primary-foreground hover:opacity-95">Add</button>
-                ) : (
-                  <div className="flex items-center justify-between rounded-xl bg-primary/10 p-1">
-                    <button onClick={() => dec(it.id)} className="grid h-7 w-7 place-items-center rounded-lg bg-white text-primary"><Minus className="h-3 w-3" /></button>
-                    <span className="text-sm font-bold text-primary">{qty}</span>
-                    <button onClick={() => add(it)} className="grid h-7 w-7 place-items-center rounded-lg bg-white text-primary"><Plus className="h-3 w-3" /></button>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <SectionCard title="My Orders">
-        {myOrders.length === 0 && <div className="text-sm text-muted-foreground">No orders yet.</div>}
-        <div className="space-y-2">
-          {myOrders.map((o) => (
-            <div key={o.id} className="flex items-center justify-between rounded-2xl bg-muted/40 p-3">
-              <div>
-                <div className="text-sm font-semibold">{o.id} · {(o.order_items as {qty:number}[])?.reduce((s, l) => s + l.qty, 0) ?? "?"} items</div>
-                <div className="text-xs text-muted-foreground">{fmtTime(new Date(o.created_at).getTime())}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-bold">{fmtGHS(o.total)}</div>
-                <OrderStatusBadge status={o.status} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      {cartCount > 0 && (
-        <button onClick={() => setDrawer(true)}
-          className="fixed bottom-28 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-sm font-semibold text-white shadow-glass animate-pop">
-          <ShoppingBag className="h-4 w-4" /> Cart · {cartCount} · {fmtGHS(total)}
-        </button>
-      )}
-
-      {drawer && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 animate-fade-in" onClick={() => setDrawer(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-3xl rounded-t-3xl bg-white p-5 pb-8 shadow-glass animate-slide-up max-h-[85vh] overflow-y-auto">
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted" />
-            <div className="flex items-center justify-between">
-              <div className="text-lg font-bold">Your Cart</div>
-              <button onClick={() => setDrawer(false)} className="text-muted-foreground"><X className="h-5 w-5" /></button>
-            </div>
-            <div className="mt-3 space-y-2">
-              {Object.entries(cart).map(([id, qty]) => {
-                const it = items.find((i: any) => i.id === id)!;
-                return (
-                  <div key={id} className="flex items-center gap-3 rounded-2xl bg-muted/40 p-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
-                      <ShoppingBag className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold">{it.name}</div>
-                      <div className="text-xs text-muted-foreground">{fmtGHS(it.price)} × {qty} = {fmtGHS(it.price * qty)}</div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => dec(id)} className="grid h-7 w-7 place-items-center rounded-lg bg-white"><Minus className="h-3 w-3" /></button>
-                      <span className="w-6 text-center text-sm font-bold">{qty}</span>
-                      <button onClick={() => add(it)} className="grid h-7 w-7 place-items-center rounded-lg bg-white"><Plus className="h-3 w-3" /></button>
-                    </div>
-                    <button onClick={() => setCart(({ [id]: _, ...rest }) => rest)} className="text-destructive"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                );
-              })}
-            </div>
-            <textarea placeholder="Add a note (optional)" value={note} onChange={(e) => setNote(e.target.value)}
-              className="mt-3 w-full rounded-2xl border border-border bg-white p-3 text-sm" rows={2} />
-            <div className="mt-3 flex items-center justify-between text-base font-bold">
-              <span>Total</span><span>{fmtGHS(total)}</span>
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">Pay on delivery — cash or MoMo.</div>
-            <button onClick={place} disabled={placeOrderMut.isPending}
-              className="mt-3 w-full rounded-2xl bg-gradient-primary py-3 text-sm font-semibold text-white shadow-soft disabled:opacity-50">
-              {placeOrderMut.isPending ? "Placing…" : "Place Order"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OrderStatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-700", confirmed: "bg-sky-100 text-sky-700",
-    ready: "bg-violet-100 text-violet-700", delivered: "bg-primary/10 text-primary",
-    cancelled: "bg-muted text-muted-foreground",
-  };
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${map[status] ?? "bg-muted text-muted-foreground"}`}>{status}</span>;
-}
-
 /* =========================  MORE / METER / HISTORY  ========================= */
 
 function MoreTab({ onSub }: { onSub: (s: SubPage) => void }) {
@@ -828,16 +652,19 @@ function MeterTab({ studentId, onBack }: { studentId: string; onBack: () => void
     <div className="space-y-4">
       <button onClick={onBack} className="text-sm text-primary">‹ Back</button>
 
-      {/* Meter header */}
-      <div className="squircle bg-white p-6 text-center shadow-soft animate-slide-up">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-violet-100 text-violet-700"><Zap className="h-8 w-8" /></div>
-        <div className="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Your Meter</div>
-        <div className="text-3xl font-bold">{meter.no}</div>
-      </div>
+      {/* Management notice — shown first if set, it's urgent */}
+      {meter.notice && (
+        <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+          <div>
+            <div className="text-sm font-semibold text-amber-900">Management Notice</div>
+            <div className="text-xs text-amber-800 mt-0.5">{meter.notice}</div>
+          </div>
+        </div>
+      )}
 
       {/* ── Pay electricity bill via ECG PowerApp ── */}
       <div className="squircle overflow-hidden shadow-soft">
-        {/* gradient header */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/25">
@@ -851,17 +678,14 @@ function MeterTab({ studentId, onBack }: { studentId: string; onBack: () => void
         </div>
 
         <div className="bg-white px-5 py-4 space-y-3">
-          {/* Meter number display */}
+          {/* Meter number — copy before opening app */}
           <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
             <div>
               <div className="text-[10px] uppercase tracking-wider text-amber-700 font-semibold">Your Meter Number</div>
               <div className="text-xl font-bold text-amber-900 mt-0.5">{meter.no}</div>
             </div>
             <button
-              onClick={async () => {
-                await navigator.clipboard.writeText(meter.no);
-                toast.success("Meter number copied");
-              }}
+              onClick={async () => { await navigator.clipboard.writeText(meter.no); toast.success("Meter number copied"); }}
               className="grid h-9 w-9 place-items-center rounded-xl bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 transition"
               title="Copy meter number"
             >
@@ -870,7 +694,7 @@ function MeterTab({ studentId, onBack }: { studentId: string; onBack: () => void
           </div>
 
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Tap the button below to open the <strong>ECG PowerApp</strong>. Your meter number is shown above — copy it before opening the app so you can paste it into the top-up screen.
+            Copy your meter number above, then open the <strong>ECG PowerApp</strong> to load prepaid units.
           </p>
 
           {/* Primary CTA */}
@@ -884,89 +708,29 @@ function MeterTab({ studentId, onBack }: { studentId: string; onBack: () => void
 
           {/* Fallback links */}
           <div className="flex items-center justify-center gap-4 pt-0.5">
-            <a
-              href="https://play.google.com/store/apps/details?id=com.ecgmobile"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
-            >
-              Android (Play Store)
+            <a href="https://play.google.com/store/apps/details?id=com.ecgmobile" target="_blank" rel="noopener noreferrer"
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline">
+              Android
             </a>
             <span className="text-muted-foreground text-xs">·</span>
-            <a
-              href="https://apps.apple.com/app/ecg-powerapp/id1398352884"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
-            >
-              iOS (App Store)
+            <a href="https://apps.apple.com/app/ecg-powerapp/id1398352884" target="_blank" rel="noopener noreferrer"
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline">
+              iOS
             </a>
             <span className="text-muted-foreground text-xs">·</span>
-            <a
-              href="tel:*226%23"
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
-            >
+            <a href="tel:*226%23" className="text-xs text-muted-foreground underline-offset-2 hover:text-primary hover:underline">
               Dial *226#
             </a>
           </div>
         </div>
       </div>
 
-      {/* Rooms */}
-      <SectionCard title="Rooms on this meter">
-        <div className="flex flex-wrap gap-2">
-          {(meter.rooms as string[]).map((r) => (
-            <span key={r} className={`rounded-full px-3 py-1 text-xs font-medium ${r === me.room_no ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>{r}</span>
-          ))}
-        </div>
-      </SectionCard>
-
-      {/* Meter-mates */}
-      <SectionCard title={`Students sharing (${roommates.length})`}>
-        <div className="divide-y divide-border">
-          {roommates.map((s: any) => (
-            <div key={s.id} className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-3">
-                <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-primary text-xs font-bold text-white">{initials(s.full_name)}</div>
-                <div><div className="text-sm font-medium">{s.full_name}</div><div className="text-xs text-muted-foreground">{s.id}</div></div>
-              </div>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{s.room_no}</span>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      {/* Management notice */}
-      {meter.notice && (
-        <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
-          <div><div className="text-sm font-semibold text-amber-900">Management Notice</div><div className="text-xs text-amber-800">{meter.notice}</div></div>
-        </div>
-      )}
-
-      {/* ── Prepaid electricity top-up ── */}
-      <div className="squircle bg-violet-50 border border-violet-200 p-5">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700">
-            <Zap className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-violet-900">How to top up prepaid electricity</div>
-            <ol className="mt-2 space-y-1.5 text-xs text-violet-800 list-decimal list-inside">
-              <li>Download the <strong>ECG POWER APP</strong> on your phone, or dial <strong>*226#</strong> and follow the steps to pay for your prepaid.</li>
-              <li>Once payment is confirmed, load your token on the meter <strong>(INEST)</strong>.</li>
-              <li>Use the form below to log your top-up so your meter-mates are notified.</li>
-            </ol>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Prepaid electricity log form ── */}
+      {/* ── Log top-up ── */}
       <div className="squircle bg-white p-5 shadow-soft">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="text-base font-bold">Log Prepaid Top-up</div>
-            <div className="text-xs text-muted-foreground">Bought electricity outside? Log it here — your meter-mates will be notified via SMS.</div>
+            <div className="text-base font-bold">Log a Top-up</div>
+            <div className="text-xs text-muted-foreground">Bought prepaid units? Log it — meter-mates get notified via SMS.</div>
           </div>
           <button onClick={() => setShowTopupForm((v) => !v)}
             className="rounded-full bg-violet-100 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-200">
@@ -983,14 +747,14 @@ function MeterTab({ studentId, onBack }: { studentId: string; onBack: () => void
                 className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium">Paste your confirmation SMS</label>
+              <label className="mb-1 block text-xs font-medium">Confirmation SMS (paste it here)</label>
               <textarea required value={topupConfirmation} onChange={(e) => setTopupConfirmation(e.target.value)}
-                placeholder="Paste the full confirmation message you received after buying the prepaid units…"
+                placeholder="Paste the confirmation message you received after buying units…"
                 rows={3}
                 className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
             <div className="rounded-xl bg-violet-50 p-3 text-xs text-violet-800">
-              This will be broadcast to all {roommates.length} students on meter <strong>{meter.no}</strong> via SMS.
+              This will be broadcast to all {roommates.length} student{roommates.length !== 1 ? "s" : ""} on meter <strong>{meter.no}</strong> via SMS.
             </div>
             <button type="submit" disabled={logTopup.isPending}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 py-3 text-sm font-semibold text-white disabled:opacity-50">
@@ -1028,6 +792,35 @@ function MeterTab({ studentId, onBack }: { studentId: string; onBack: () => void
           ))}
         </div>
       </SectionCard>
+
+      {/* Rooms on this meter */}
+      <SectionCard title="Rooms on this meter">
+        <div className="flex flex-wrap gap-2">
+          {(meter.rooms as string[]).map((r) => (
+            <span key={r} className={`rounded-full px-3 py-1 text-xs font-medium ${r === me.room_no ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>{r}</span>
+          ))}
+        </div>
+      </SectionCard>
+
+      {/* Meter-mates */}
+      <SectionCard title={`Students sharing this meter (${roommates.length})`}>
+        <div className="divide-y divide-border">
+          {roommates.map((s: any) => (
+            <div key={s.id} className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-primary text-xs font-bold text-white">{initials(s.full_name)}</div>
+                <div>
+                  <div className="text-sm font-medium">{s.full_name}</div>
+                  <div className="text-xs text-muted-foreground">{s.id}</div>
+                </div>
+              </div>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{s.room_no}</span>
+            </div>
+          ))}
+          {roommates.length === 0 && <div className="text-sm text-muted-foreground">No other students on this meter yet.</div>}
+        </div>
+      </SectionCard>
+
     </div>
   );
 }
@@ -1079,7 +872,7 @@ function HistoryTab({ studentId, onBack }: { studentId: string; onBack: () => vo
 function BottomNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const tabs: { key: Tab; label: string; icon: typeof Home }[] = [
     { key: "home", label: "Home", icon: Home }, { key: "profile", label: "Profile", icon: User },
-    { key: "fees", label: "Fees", icon: Wallet }, { key: "store", label: "Store", icon: ShoppingBag },
+    { key: "fees", label: "Fees", icon: Wallet },
     { key: "more", label: "More", icon: MoreHorizontal },
   ];
   const idx = tabs.findIndex((t) => t.key === tab);
@@ -1087,7 +880,7 @@ function BottomNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) 
     <nav className="fixed bottom-3 left-1/2 z-30 -translate-x-1/2 safe-bottom">
       <div className="glass-strong relative flex items-center gap-1 rounded-full p-1.5">
         <div className="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-primary shadow-soft transition-all duration-500"
-          style={{ width: `calc((100% - 12px) / 5)`, transform: `translateX(calc(${idx} * 100%))`, transitionTimingFunction: "cubic-bezier(.34,1.56,.64,1)" }} />
+          style={{ width: `calc((100% - 12px) / 4)`, transform: `translateX(calc(${idx} * 100%))`, transitionTimingFunction: "cubic-bezier(.34,1.56,.64,1)" }} />
         {tabs.map((t) => {
           const active = t.key === tab;
           return (

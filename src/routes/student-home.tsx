@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, CreditCard, BookOpen, ShoppingBag,
+  LayoutDashboard, CreditCard, BookOpen,
   Zap, Phone, LogOut, ChevronRight, CheckCircle2,
-  AlertTriangle, DoorOpen, User, Loader2,
+  AlertTriangle, DoorOpen, User, Briefcase, MessageCircle, X,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
-import { useStudent, useSettings } from "@/lib/queries";
+import { useStudent, useSettings, useActiveInternships } from "@/lib/queries";
 import { initials } from "@/lib/hostel-store";
 
 export const Route = createFileRoute("/student-home")({
@@ -25,6 +25,8 @@ function StudentHome() {
   const currentId = getCurrentStudentId();
   const { data: student, isLoading } = useStudent(currentId);
   const { data: settings } = useSettings();
+  const { data: internships = [] } = useActiveInternships();
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
   useEffect(() => {
     if (!currentId) navigate({ to: "/" });
@@ -72,14 +74,6 @@ function StudentHome() {
       label: "Hostel Policy",
       description: "Full guidelines, rules and code of conduct",
       to: "/policy" as const,
-      badge: undefined as string | undefined,
-      chip: undefined as string | undefined,
-    },
-    {
-      icon: ShoppingBag,
-      label: "Hostel Store",
-      description: "Order items for delivery — pay on receipt",
-      to: "/portal" as const,
       badge: undefined as string | undefined,
       chip: undefined as string | undefined,
     },
@@ -288,6 +282,19 @@ function StudentHome() {
         </div>
       )}
 
+      {/* ── Announcement banner ── */}
+      {settings?.announcement?.trim() && !announcementDismissed && (
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 -mt-2">
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-soft">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+            <p className="flex-1 text-xs leading-relaxed text-amber-800">{settings.announcement}</p>
+            <button onClick={() => setAnnouncementDismissed(true)} className="shrink-0 text-amber-500 hover:text-amber-700">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Section grid ── */}
       <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <p className="text-sm font-semibold text-muted-foreground mb-4">
@@ -321,6 +328,93 @@ function StudentHome() {
             </Link>
           ))}
         </div>
+      </div>
+
+      {/* ── WhatsApp channel + Internships ── */}
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pb-2 space-y-6">
+
+        {/* WhatsApp Channel */}
+        {settings?.whatsapp_channel_url && (
+          <div className="flex items-center justify-between rounded-2xl border border-[#25D366]/30 bg-[#25D366]/5 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#25D366]/15 text-[#25D366]">
+                <MessageCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold">Join our WhatsApp Channel</div>
+                <div className="text-xs text-muted-foreground">Stay updated with hostel news & announcements</div>
+              </div>
+            </div>
+            <a href={settings.whatsapp_channel_url} target="_blank" rel="noopener noreferrer"
+              className="shrink-0 rounded-full bg-[#25D366] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1ebe5d] transition">
+              Join
+            </a>
+          </div>
+        )}
+
+        {/* Internships */}
+        {internships.length > 0 && (
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Internship Opportunities</span>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{internships.length}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {internships.map((co: any) => (
+                <div key={co.id} className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-border/50">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <Briefcase className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-sm font-bold truncate">{co.company_name}</span>
+                        {co.industry && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{co.industry}</span>}
+                      </div>
+                      {co.description && <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed line-clamp-2">{co.description}</p>}
+                    </div>
+                  </div>
+                  {/* Contact details */}
+                  <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+                    {co.contact_person && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <User className="h-3.5 w-3.5 shrink-0" />
+                        <span>{co.contact_person}</span>
+                      </div>
+                    )}
+                    {co.contact_phone && (
+                      <a href={`tel:${co.contact_phone}`} className="flex items-center gap-2 text-xs text-primary hover:underline">
+                        <Phone className="h-3.5 w-3.5 shrink-0" />
+                        <span>{co.contact_phone}</span>
+                      </a>
+                    )}
+                    {co.contact_whatsapp && (
+                      <a href={`https://wa.me/${co.contact_whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-[#25D366] hover:underline">
+                        <MessageCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{co.contact_whatsapp}</span>
+                      </a>
+                    )}
+                    {co.contact_email && (
+                      <a href={`mailto:${co.contact_email}`} className="flex items-center gap-2 text-xs text-primary hover:underline">
+                        <span className="text-[11px] font-medium">✉</span>
+                        <span>{co.contact_email}</span>
+                      </a>
+                    )}
+                    {co.address && (
+                      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <span className="shrink-0">📍</span>
+                        <span>{co.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Footer */}

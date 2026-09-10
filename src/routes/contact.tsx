@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Phone, Mail, MapPin, Clock, AlertTriangle, MessageCircle, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import logo from "@/assets/logo.jpg";
 import { useSettings } from "@/lib/queries";
 
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/contact")({
 
 function Contact() {
   const { data: settings } = useSettings();
+  const [submitted, setSubmitted] = useState(false);
 
   const emergency = [
     settings?.emergency_security && { label: "Hostel Security (24/7)", value: settings.emergency_security, href: `tel:${settings.emergency_security.replace(/\s/g, "")}` },
@@ -28,7 +31,7 @@ function Contact() {
     settings?.email && { icon: Mail, label: "Email", value: settings.email, href: `mailto:${settings.email}` },
     settings?.contact_whatsapp && { icon: MessageCircle, label: "WhatsApp", value: settings.contact_whatsapp, href: `https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, "")}` },
     settings?.address && { icon: MapPin, label: "Address", value: settings.address, href: undefined },
-    { icon: Clock, label: "Office Hours", value: (settings as any)?.office_hours || "Mon–Sat · 8:00 AM – 8:00 PM", href: undefined },
+    { icon: Clock, label: "Office Hours", value: settings?.office_hours || "Mon–Sat · 8:00 AM – 8:00 PM", href: undefined },
   ].filter(Boolean) as { icon: typeof Phone; label: string; value: string; href?: string }[];
 
   return (
@@ -76,13 +79,51 @@ function Contact() {
           <div className="lg:col-span-2 squircle bg-white p-6 shadow-soft">
             <h2 className="text-lg font-semibold">Send us a message</h2>
             <p className="mt-1 text-sm text-muted-foreground">We typically reply within 2 hours during office hours.</p>
-            <form onSubmit={(e) => { e.preventDefault(); alert("Thanks! We'll be in touch shortly."); }} className="mt-5 grid gap-4 sm:grid-cols-2">
-              <input required placeholder="Full name" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
-              <input required type="email" placeholder="Email" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
-              <input placeholder="Phone (optional)" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 sm:col-span-2" />
-              <textarea required rows={5} placeholder="How can we help?" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 sm:col-span-2" />
-              <button className="sm:col-span-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-95">Send message</button>
-            </form>
+            {submitted ? (
+              <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 px-6 py-8 text-center">
+                <div className="text-2xl">✅</div>
+                <p className="mt-2 font-semibold text-foreground">Message received!</p>
+                <p className="mt-1 text-sm text-muted-foreground">We'll get back to you within 2 hours during office hours.</p>
+                <button
+                  onClick={() => setSubmitted(false)}
+                  className="mt-4 text-sm text-primary underline underline-offset-2"
+                >
+                  Send another message
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const fd = new FormData(e.currentTarget);
+                  const name = fd.get("name") as string;
+                  const email = fd.get("email") as string;
+                  const phone = fd.get("phone") as string;
+                  const message = fd.get("message") as string;
+
+                  // Build a WhatsApp or mailto link to forward the message
+                  const whatsapp = settings?.contact_whatsapp;
+                  const body = `*New message from ${name}*\nEmail: ${email}${phone ? `\nPhone: ${phone}` : ""}\n\n${message}`;
+
+                  if (whatsapp) {
+                    const num = whatsapp.replace(/[^0-9]/g, "");
+                    window.open(`https://wa.me/${num}?text=${encodeURIComponent(body)}`, "_blank");
+                  } else if (settings?.email) {
+                    window.location.href = `mailto:${settings.email}?subject=${encodeURIComponent(`Message from ${name}`)}&body=${encodeURIComponent(body)}`;
+                  }
+
+                  setSubmitted(true);
+                  toast.success("Message sent! We'll be in touch shortly.");
+                }}
+                className="mt-5 grid gap-4 sm:grid-cols-2"
+              >
+                <input name="name" required placeholder="Full name" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+                <input name="email" required type="email" placeholder="Email" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+                <input name="phone" placeholder="Phone (optional)" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 sm:col-span-2" />
+                <textarea name="message" required rows={5} placeholder="How can we help?" className="rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 sm:col-span-2" />
+                <button type="submit" className="sm:col-span-2 rounded-2xl bg-gradient-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:opacity-95">Send message</button>
+              </form>
+            )}
           </div>
 
           {general.length > 0 && (

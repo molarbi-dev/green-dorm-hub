@@ -27,7 +27,7 @@ export const createPolicy = createServerFn({ method: "POST" })
   .inputValidator(z.object({ title: z.string().min(1), body: z.string().min(1), sort_order: z.number().optional() }))
   .handler(async ({ data }) => {
     const db = getSupabaseAdmin();
-    const { data: max } = await db.from("policies").select("sort_order").order("sort_order", { ascending: false }).limit(1).single();
+    const { data: max } = await db.from("policies").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
     const { data: policy, error } = await db.from("policies")
       .insert({ title: data.title, body: data.body, sort_order: data.sort_order ?? ((max?.sort_order ?? 0) + 1) })
       .select().single();
