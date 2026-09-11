@@ -32,6 +32,9 @@ function Setup() {
           setDone(true);
           setTimeout(() => navigate({ to: "/" }), 2500);
         },
+        onError: () => {
+          // error is displayed via createAdmin.error below
+        },
       },
     );
   }
@@ -108,6 +111,12 @@ function Setup() {
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
               {createAdmin.isPending ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating…</> : "Create admin account"}
             </button>
+            {createAdmin.isError && (
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive break-words">
+                <span className="font-semibold">Error: </span>
+                {(createAdmin.error as Error)?.message ?? "Unknown error. Check Cloudflare logs."}
+              </div>
+            )}
           </form>
         </div>
       </div>

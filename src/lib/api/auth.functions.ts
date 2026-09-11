@@ -61,6 +61,17 @@ export const createFirstAdmin = createServerFn({ method: "POST" })
       throw new Error("Invalid setup key.");
     }
 
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        `Missing Supabase credentials. ` +
+        `SUPABASE_URL: ${supabaseUrl ? "✓" : "✗ MISSING"}, ` +
+        `SUPABASE_SERVICE_ROLE_KEY: ${supabaseKey ? "✓" : "✗ MISSING"}. ` +
+        `Add these as secrets in your Cloudflare Workers dashboard.`
+      );
+    }
+
     const db = getSupabaseAdmin();
 
     // Only allow if no admins exist yet
@@ -68,7 +79,7 @@ export const createFirstAdmin = createServerFn({ method: "POST" })
       .from("admins")
       .select("id", { count: "exact", head: true });
 
-    if (countErr) throw new Error(`Database error during setup: ${countErr.message}`);
+    if (countErr) throw new Error(`Database error during setup: ${countErr.message} (code: ${countErr.code})`);
 
     if ((count ?? 0) > 0) {
       throw new Error("An admin account already exists. Use the admin panel to add more.");
