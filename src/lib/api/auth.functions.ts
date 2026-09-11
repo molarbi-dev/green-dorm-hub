@@ -79,7 +79,7 @@ export const createFirstAdmin = createServerFn({ method: "POST" })
       .from("admins")
       .select("id", { count: "exact", head: true });
 
-    if (countErr) throw new Error(`Database error during setup: ${countErr.message} (code: ${countErr.code})`);
+    if (countErr) throw new Error(`Database error during setup: ${JSON.stringify(countErr)}`);
 
     if ((count ?? 0) > 0) {
       throw new Error("An admin account already exists. Use the admin panel to add more.");
