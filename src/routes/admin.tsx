@@ -259,6 +259,7 @@ function StudentsPage() {
   const [adding, setAdding] = useState(false);
   const [del, setDel] = useState<StudentRow | null>(null);
   const [resetPw, setResetPw] = useState<StudentRow | null>(null);
+  const [detail, setDetail] = useState<StudentRow | null>(null);
 
   const filtered = students.filter((s) => {
     const match = (s.full_name + s.id + s.course + (s.room_no ?? "")).toLowerCase().includes(q.toLowerCase());
@@ -291,12 +292,15 @@ function StudentsPage() {
         {filtered.map((s) => (
           <div key={s.id} className="squircle bg-white p-4 shadow-soft animate-slide-up">
             <div className="flex items-start gap-3">
-              <div className="grid h-11 w-11 overflow-hidden rounded-full bg-gradient-primary text-sm font-bold text-white shrink-0">
+              <button
+                onClick={() => setDetail(s)}
+                className="grid h-11 w-11 overflow-hidden rounded-full bg-gradient-primary text-sm font-bold text-white shrink-0 hover:ring-2 hover:ring-primary/40 transition"
+              >
                 {(s as any).avatar_url
                   ? <img src={(s as any).avatar_url} alt="" className="h-full w-full object-cover" />
                   : <span className="grid h-full w-full place-items-center">{initials(s.full_name)}</span>}
-              </div>
-              <div className="flex-1 min-w-0">
+              </button>
+              <button onClick={() => setDetail(s)} className="flex-1 min-w-0 text-left">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-sm font-bold truncate">{s.full_name}</div>
                   <BadgeReg status={s.reg_status} /><BadgeChk status={s.check_status} />
@@ -305,7 +309,7 @@ function StudentsPage() {
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>Room: {s.room_no ?? "—"}</span><span>Meter: {s.meter_no ?? "—"}</span><span>Tel: {s.phone}</span>
                 </div>
-              </div>
+              </button>
               <div className="flex flex-col gap-1">
                 <button onClick={() => setEdit(s)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-primary/10"><Edit3 className="h-3.5 w-3.5" /></button>
                 <button onClick={() => setResetPw(s)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-amber-100 text-amber-700" title="Reset password"><Lock className="h-3.5 w-3.5" /></button>
@@ -328,6 +332,15 @@ function StudentsPage() {
       {del && <ConfirmModal title={`Delete ${del.full_name}?`} body="This cannot be undone."
         onCancel={() => setDel(null)} onConfirm={() => { deleteMut.mutate(del.id); setDel(null); }} />}
       {resetPw && <ResetPasswordModal student={resetPw} onClose={() => setResetPw(null)} />}
+      {detail && (
+        <StudentDetailDrawer
+          student={detail}
+          onClose={() => setDetail(null)}
+          onEdit={() => { setEdit(detail); setDetail(null); }}
+          onResetPw={() => { setResetPw(detail); setDetail(null); }}
+          onDelete={() => { setDel(detail); setDetail(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -374,6 +387,135 @@ function StudentModal({ initial, rooms, meters, onClose, onSave }: {
         <button onClick={() => onSave(f)} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Save</button>
       </div>
     </Modal>
+  );
+}
+
+function StudentDetailDrawer({
+  student, onClose, onEdit, onResetPw, onDelete,
+}: {
+  student: StudentRow;
+  onClose: () => void;
+  onEdit: () => void;
+  onResetPw: () => void;
+  onDelete: () => void;
+}) {
+  const { data: payments = [] } = usePayments(student.id);
+  const { data: settings } = useSettings();
+
+  const regFee = settings?.registration_fee ?? 0;
+  const hostelFee = settings?.hostel_fee ?? 0;
+  const regBalance = Math.max(0, regFee - student.reg_paid);
+  const hostelBalance = Math.max(0, hostelFee - student.hostel_paid);
+
+  const rows: { label: string; value: React.ReactNode }[] = [
+    { label: "Student ID",       value: student.id },
+    { label: "Full Name",        value: student.full_name },
+    { label: "Username",         value: student.username || "—" },
+    { label: "Programme",        value: student.course || "—" },
+    { label: "Level",            value: student.level || "—" },
+    { label: "Gender",           value: student.gender ? student.gender.charAt(0).toUpperCase() + student.gender.slice(1) : "—" },
+    { label: "Room",             value: student.room_no ?? "—" },
+    { label: "Meter",            value: student.meter_no ?? "—" },
+    { label: "Phone",            value: student.phone || "—" },
+    { label: "WhatsApp",         value: student.whatsapp || "—" },
+    { label: "Guardian",         value: student.guardian_name || "—" },
+    { label: "Guardian Phone",   value: student.guardian_phone || "—" },
+    { label: "Reg. Status",      value: <BadgeReg status={student.reg_status} /> },
+    { label: "Reg. Paid",        value: fmtGHS(student.reg_paid) },
+    { label: "Reg. Balance",     value: regBalance > 0 ? <span className="text-destructive font-medium">{fmtGHS(regBalance)}</span> : <span className="text-primary font-medium">Settled</span> },
+    { label: "Hostel Paid",      value: fmtGHS(student.hostel_paid) },
+    { label: "Hostel Balance",   value: hostelBalance > 0 ? <span className="text-destructive font-medium">{fmtGHS(hostelBalance)}</span> : <span className="text-primary font-medium">Settled</span> },
+    { label: "Check Status",     value: <BadgeChk status={student.check_status} /> },
+    { label: "Last Check-In",    value: student.last_check_in ? fmtTime(new Date(student.last_check_in).getTime()) : "—" },
+    { label: "Last Check-Out",   value: student.last_check_out ? fmtTime(new Date(student.last_check_out).getTime()) : "—" },
+    { label: "Policy Accepted",  value: student.policy_accepted ? <span className="text-primary font-medium">Yes</span> : <span className="text-muted-foreground">No</span> },
+    { label: "Accepted At",      value: student.accepted_at ? fmtDate(new Date(student.accepted_at).getTime()) : "—" },
+    { label: "Registered On",    value: fmtDate(new Date(student.created_at).getTime()) },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 animate-fade-in" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative flex h-full w-full max-w-md flex-col bg-white shadow-glass animate-slide-up overflow-hidden"
+        style={{ borderRadius: "1.5rem 0 0 1.5rem" }}
+      >
+        {/* Header */}
+        <div className="bg-gradient-primary px-5 py-5 text-white shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-4">
+              <div className="grid h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/20 text-xl font-bold text-white">
+                {(student as any).avatar_url
+                  ? <img src={(student as any).avatar_url} alt="" className="h-full w-full object-cover" />
+                  : <span className="grid h-full w-full place-items-center">{initials(student.full_name)}</span>}
+              </div>
+              <div>
+                <div className="text-lg font-bold leading-tight">{student.full_name}</div>
+                <div className="text-xs opacity-80">{student.id}</div>
+                <div className="mt-1 flex gap-1.5 flex-wrap">
+                  <BadgeReg status={student.reg_status} />
+                  <BadgeChk status={student.check_status} />
+                </div>
+              </div>
+            </div>
+            <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full bg-white/20 hover:bg-white/30">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+          {/* Info table */}
+          <div className="squircle bg-muted/30 overflow-hidden">
+            {rows.map(({ label, value }, i) => (
+              <div key={label} className={`flex items-center justify-between gap-3 px-4 py-2.5 text-sm ${i % 2 === 0 ? "bg-white/60" : ""}`}>
+                <span className="text-xs text-muted-foreground shrink-0 w-32">{label}</span>
+                <span className="text-right font-medium text-foreground break-all">{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Payment history */}
+          <div>
+            <div className="mb-2 text-sm font-bold">Payment History</div>
+            {payments.length === 0 ? (
+              <div className="rounded-2xl bg-muted/40 p-4 text-center text-xs text-muted-foreground">No payments recorded.</div>
+            ) : (
+              <div className="space-y-2">
+                {[...payments]
+                  .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
+                  .map((p) => (
+                    <div key={p.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
+                      <div>
+                        <div className="text-xs font-semibold capitalize">{p.type} fee · {p.method}</div>
+                        <div className="text-[11px] text-muted-foreground">{p.id} · {fmtDate(new Date(p.payment_date).getTime())}</div>
+                      </div>
+                      <div className="text-sm font-bold text-primary">{fmtGHS(p.amount)}</div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer actions */}
+        <div className="shrink-0 border-t border-border bg-white px-5 py-4 flex gap-2">
+          <button onClick={onEdit}
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90">
+            <Edit3 className="h-4 w-4" /> Edit
+          </button>
+          <button onClick={onResetPw}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-amber-100 px-4 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-200">
+            <Lock className="h-4 w-4" /> Password
+          </button>
+          <button onClick={onDelete}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/20">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
