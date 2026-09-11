@@ -48,6 +48,11 @@ export interface Database {
         Insert: Omit<InternshipRow, "id" | "created_at" | "updated_at">;
         Update: Partial<Omit<InternshipRow, "id" | "created_at">>;
       };
+      admins: {
+        Row: AdminRow;
+        Insert: Omit<AdminRow, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<AdminRow, "id" | "created_at">>;
+      };
     };
   };
 }
@@ -155,6 +160,15 @@ export interface InternshipRow {
   contact_whatsapp: string | null;
   address: string | null;
   active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminRow {
+  id: string;               // uuid
+  username: string;
+  password_hash: string;
+  full_name: string;
   created_at: string;
   updated_at: string;
 }
