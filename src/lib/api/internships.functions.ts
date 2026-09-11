@@ -11,6 +11,7 @@ const internshipSchema = z.object({
   contact_email: z.string().optional(),
   contact_whatsapp: z.string().optional(),
   address: z.string().optional(),
+  logo_url: z.string().url().optional().or(z.literal("")).transform(v => v === "" ? null : v),
   active: z.boolean().optional(),
 });
 
@@ -52,6 +53,7 @@ export const createInternship = createServerFn({ method: "POST" })
         contact_email: data.contact_email ?? null,
         contact_whatsapp: data.contact_whatsapp ?? null,
         address: data.address ?? null,
+        logo_url: data.logo_url ?? null,
         active: data.active ?? true,
       })
       .select()

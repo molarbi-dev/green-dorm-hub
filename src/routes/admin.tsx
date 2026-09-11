@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Search, Plus, Edit3, Trash2, X, Save,
   CheckCircle2, XCircle, AlertTriangle, Copy, Check, Send,
   FileText, ArrowRight, MoreHorizontal, Lock, Receipt, Briefcase,
+  Upload, Loader2,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar,
@@ -1436,8 +1437,10 @@ function InternshipsPage() {
         {internships.map((co: any) => (
           <div key={co.id} className={`squircle bg-white p-4 shadow-soft ${!co.active ? "opacity-60" : ""}`}>
             <div className="flex items-start gap-3">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                <Briefcase className="h-5 w-5" />
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary overflow-hidden">
+                {co.logo_url
+                  ? <img src={co.logo_url} alt={co.company_name} className="h-full w-full object-contain p-1" />
+                  : <Briefcase className="h-5 w-5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1501,11 +1504,58 @@ function InternshipModal({ initial, onClose, onSave }: {
     contact_email: initial?.contact_email ?? "",
     contact_whatsapp: initial?.contact_whatsapp ?? "",
     address: initial?.address ?? "",
+    logo_url: initial?.logo_url ?? "",
     active: initial?.active ?? true,
   });
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(initial?.logo_url ?? null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { uploadToImgur } = await import("@/lib/imgur");
+      const url = await uploadToImgur(file);
+      setF((prev) => ({ ...prev, logo_url: url }));
+      setPreview(url);
+      toast.success("Logo uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <Modal title={initial ? "Edit Company" : "Add Internship Company"} onClose={onClose}>
+      {/* Logo upload */}
+      <div className="mb-4 flex items-center gap-4">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 flex items-center justify-center">
+          {preview
+            ? <img src={preview} alt="Logo" className="h-full w-full object-contain p-1" />
+            : <Briefcase className="h-6 w-6 text-muted-foreground" />}
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="text-xs font-medium mb-1">Company Logo / Image</div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoFile} className="hidden" />
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium hover:bg-muted/40 disabled:opacity-50">
+            <Upload className="h-3.5 w-3.5" /> {preview ? "Change logo" : "Upload logo"}
+          </button>
+          {preview && (
+            <button type="button" onClick={() => { setPreview(null); setF((p) => ({ ...p, logo_url: "" })); }}
+              className="ml-2 text-xs text-muted-foreground hover:text-destructive">Remove</button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField label="Company Name *" value={f.company_name} onChange={(v) => setF({ ...f, company_name: v })} />
         <FormField label="Industry" value={f.industry} onChange={(v) => setF({ ...f, industry: v })} />
@@ -1529,7 +1579,7 @@ function InternshipModal({ initial, onClose, onSave }: {
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
-        <button onClick={() => onSave(f)} disabled={!f.company_name.trim()}
+        <button onClick={() => onSave(f)} disabled={!f.company_name.trim() || uploading}
           className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
           Save
         </button>

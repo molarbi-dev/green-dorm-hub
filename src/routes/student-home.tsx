@@ -368,9 +368,11 @@ function StudentHome() {
               {internships.map((co: any) => (
                 <div key={co.id} className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-border/50">
                   <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                      <Briefcase className="h-4 w-4" />
-                    </div>
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary overflow-hidden">
+                    {co.logo_url
+                      ? <img src={co.logo_url} alt={co.company_name} className="h-full w-full object-contain p-1" />
+                      : <Briefcase className="h-4 w-4" />}
+                  </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-sm font-bold truncate">{co.company_name}</span>

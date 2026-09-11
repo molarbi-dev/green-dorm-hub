@@ -159,6 +159,7 @@ export interface InternshipRow {
   contact_email: string | null;
   contact_whatsapp: string | null;
   address: string | null;
+  logo_url: string | null;
   active: boolean;
   created_at: string;
   updated_at: string;
