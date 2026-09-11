@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useMemo, useState, useEffect, useRef } from "react";
-import {
+import { useMemo, useState, useEffect, useRef } from "react";import {
   Home, User, Wallet, MoreHorizontal, LogOut,
   CheckCircle2, XCircle, ArrowRight, Copy, Check,
   Zap, History, ChevronRight, Phone, MessageCircle, DoorOpen,
@@ -52,6 +51,9 @@ function openEcgApp(meterNo: string) {
 
 export const Route = createFileRoute("/portal")({
   head: () => ({ meta: [{ title: "Student Portal — SME Hostels" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: (search.tab as string) ?? "home",
+  }),
   component: Portal,
 });
 
@@ -66,7 +68,11 @@ function getCurrentStudentId(): string {
 
 function Portal() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<Tab>("home");
+  const { tab: initialTab } = Route.useSearch();
+  const validTabs: Tab[] = ["home", "profile", "fees", "more"];
+  const [tab, setTab] = useState<Tab>(
+    validTabs.includes(initialTab as Tab) ? (initialTab as Tab) : "home"
+  );
   const [sub, setSub] = useState<SubPage>(null);
   const currentId = getCurrentStudentId();
 

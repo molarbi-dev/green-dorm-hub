@@ -56,6 +56,7 @@ function StudentHome() {
       label: "Student Dashboard",
       description: "Check-in status, room details and activity history",
       to: "/portal" as const,
+      search: { tab: "home" },
       badge: undefined as string | undefined,
       chip: undefined as string | undefined,
     },
@@ -67,6 +68,7 @@ function StudentHome() {
         : "Your registration fee has been settled",
       badge: regPending ? "Pending" : undefined,
       to: "/portal" as const,
+      search: { tab: "fees" },
       chip: undefined as string | undefined,
     },
     {
@@ -74,6 +76,7 @@ function StudentHome() {
       label: "Hostel Policy",
       description: "Full guidelines, rules and code of conduct",
       to: "/policy" as const,
+      search: {},
       badge: undefined as string | undefined,
       chip: undefined as string | undefined,
     },
@@ -84,8 +87,8 @@ function StudentHome() {
         ? `Meter ${student.meter_no} · Pay via ECG PowerApp or log a top-up`
         : "View shared meter and pay electricity bills",
       to: "/portal" as const,
+      search: { tab: "more" },
       badge: undefined as string | undefined,
-      // "Pay Now" chip appears only when we know the meter number
       chip: student?.meter_no ? "Pay Now" : undefined,
     },
     {
@@ -93,6 +96,7 @@ function StudentHome() {
       label: "Contact & Emergency",
       description: "Management contacts and emergency lines",
       to: "/contact" as const,
+      search: {},
       badge: undefined as string | undefined,
       chip: undefined as string | undefined,
     },
@@ -273,7 +277,7 @@ function StudentHome() {
               )}
             </div>
             {regPending && (
-              <Link to="/portal"
+              <Link to="/portal" search={{ tab: "fees" } as any}
                 className="shrink-0 rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition">
                 View details
               </Link>
@@ -302,7 +306,7 @@ function StudentHome() {
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {sections.map((s) => (
-            <Link key={s.label} to={s.to}
+            <Link key={s.label} to={s.to} search={s.search as any}
               className="group relative flex items-start gap-4 rounded-2xl bg-white p-5 shadow-soft ring-1 ring-border/50 transition hover:shadow-glass hover:-translate-y-0.5 active:scale-[.98]">
               {/* Electricity card gets an amber icon background; others use primary */}
               <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${s.chip ? "bg-amber-100 text-amber-600" : "bg-primary/10 text-primary"}`}>
