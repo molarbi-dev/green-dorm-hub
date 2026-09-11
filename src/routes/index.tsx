@@ -51,8 +51,16 @@ function Login() {
     e.preventDefault();
     setErrorMsg("");
 
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedUsername || !trimmedPassword) {
+      setErrorMsg("Please enter both username and password.");
+      return;
+    }
+
     if (role === "admin") {
-      loginAdminMut.mutate({ username, password }, {
+      loginAdminMut.mutate({ username: trimmedUsername, password: trimmedPassword }, {
         onSuccess: (admin) => {
           sessionStorage.setItem("sme_admin_id", admin.id);
           sessionStorage.setItem("sme_admin_name", admin.fullName);
@@ -61,14 +69,14 @@ function Login() {
         onError: (err) => setErrorMsg(err.message),
       });
     } else {
-      loginStudentMut.mutate({ username, password }, {
+      loginStudentMut.mutate({ username: trimmedUsername, password: trimmedPassword }, {
         onSuccess: (student) => {
           sessionStorage.setItem("sme_student_id", student.id);
           try {
             localStorage.setItem("sme_student_profile", JSON.stringify({
               id: student.id,
               fullName: student.fullName,
-              username,
+              username: trimmedUsername,
             }));
           } catch {}
           navigate({ to: "/student-home" });
