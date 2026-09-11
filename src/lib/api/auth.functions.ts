@@ -72,19 +72,17 @@ export const createFirstAdmin = createServerFn({ method: "POST" })
       );
     }
 
-    // Diagnostic: show key length and prefix so we can confirm it's the service_role key
-    // Service role keys are ~200+ chars; anon keys are shorter
-    const keyPreview = `${supabaseKey.slice(0, 20)}... (length: ${supabaseKey.length})`;
     const db = getSupabaseAdmin();
 
-    // Only allow if no admins exist yet
-    const { count, error: countErr } = await db
+    // Use select instead of count — more reliable across Supabase plan tiers
+    const { data: existingAdmins, error: countErr } = await db
       .from("admins")
-      .select("id", { count: "exact", head: true });
+      .select("id")
+      .limit(1);
 
-    if (countErr) throw new Error(`Database error [key: ${keyPreview}]: ${JSON.stringify(countErr)}`);
+    if (countErr) throw new Error(`Select error on admins table: ${JSON.stringify(countErr)}`);
 
-    if ((count ?? 0) > 0) {
+    if ((existingAdmins?.length ?? 0) > 0) {
       throw new Error("An admin account already exists. Use the admin panel to add more.");
     }
 
@@ -96,7 +94,7 @@ export const createFirstAdmin = createServerFn({ method: "POST" })
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(`Insert error: ${JSON.stringify(error)}`);
     return { id: admin.id, username: admin.username };
   });
 
