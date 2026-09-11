@@ -12,11 +12,8 @@ MNOTIFY_SENDER_ID = "SME HOSTEL"
 ADMIN_SETUP_KEY = "sme-setup-2024"
 VITE_IMGUR_CLIENT_ID = "f121133fedaa48b"
 
-# Secret names must be listed here so the nodejs_compat process.env polyfill
+# Secret names are listed here so the nodejs_compat process.env polyfill
 # maps them at runtime. Actual values are stored as secrets in the Cloudflare
 # dashboard (Workers → Settings → Variables → Secrets) — never put real
 # secret values in this file.
-[secrets]
-SUPABASE_SERVICE_ROLE_KEY = ""
-MNOTIFY_API_KEY = ""
-PAYSTACK_SECRET_KEY = ""
+secrets = ["SUPABASE_SERVICE_ROLE_KEY", "MNOTIFY_API_KEY", "PAYSTACK_SECRET_KEY"]
