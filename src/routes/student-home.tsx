@@ -55,8 +55,8 @@ function StudentHome() {
       icon: LayoutDashboard,
       label: "Student Dashboard",
       description: "Check-in status, room details and activity history",
-      to: "/portal" as const,
-      search: { tab: "home" },
+      to: "/student/dashboard" as const,
+      search: {},
       badge: undefined as string | undefined,
       chip: undefined as string | undefined,
     },
@@ -67,8 +67,8 @@ function StudentHome() {
         ? `GHS ${regFee.toLocaleString()} registration fee outstanding`
         : "Your registration fee has been settled",
       badge: regPending ? "Pending" : undefined,
-      to: "/portal" as const,
-      search: { tab: "fees" },
+      to: "/student/fees" as const,
+      search: {},
       chip: undefined as string | undefined,
     },
     {
@@ -86,8 +86,8 @@ function StudentHome() {
       description: student?.meter_no
         ? `Meter ${student.meter_no} · Pay via ECG PowerApp or log a top-up`
         : "View shared meter and pay electricity bills",
-      to: "/portal" as const,
-      search: { tab: "more" },
+      to: "/student/meter" as const,
+      search: {},
       badge: undefined as string | undefined,
       chip: student?.meter_no ? "Pay Now" : undefined,
     },
@@ -277,7 +277,7 @@ function StudentHome() {
               )}
             </div>
             {regPending && (
-              <Link to="/portal" search={{ tab: "fees" } as any}
+              <Link to="/student/fees" search={{} as any}
                 className="shrink-0 rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition">
                 View details
               </Link>
