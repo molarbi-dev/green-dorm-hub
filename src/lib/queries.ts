@@ -530,3 +530,88 @@ export function useDeleteInternship() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+// ── Wi-Fi ─────────────────────────────────────────────────────────────────────
+
+import {
+  getWifiPackages, createWifiPackage, updateWifiPackage, deleteWifiPackage,
+  getWifiSubscriptions, getWifiPayments, getWifiAccounts, setWifiAccountActive,
+  getStudentWifiInfo,
+} from "./api/wifi.functions";
+
+export const QK_WIFI = {
+  packages: ["wifi-packages"] as const,
+  subscriptions: (status?: string) => ["wifi-subscriptions", status ?? "all"] as const,
+  payments: (status?: string) => ["wifi-payments", status ?? "all"] as const,
+  accounts: ["wifi-accounts"] as const,
+  studentInfo: (studentId: string) => ["wifi-student", studentId] as const,
+};
+
+export function useWifiPackages() {
+  return useQuery({ queryKey: QK_WIFI.packages, queryFn: () => getWifiPackages() });
+}
+
+export function useCreateWifiPackage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof createWifiPackage>[0]["data"]) => createWifiPackage({ data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK_WIFI.packages }); toast.success("Package created"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateWifiPackage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof updateWifiPackage>[0]["data"]) => updateWifiPackage({ data }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK_WIFI.packages }); toast.success("Package updated"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteWifiPackage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteWifiPackage({ data: { id } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK_WIFI.packages }); toast.success("Package deleted"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useWifiSubscriptions(status?: string) {
+  return useQuery({
+    queryKey: QK_WIFI.subscriptions(status),
+    queryFn: () => getWifiSubscriptions({ data: { status } }),
+  });
+}
+
+export function useWifiPayments(status?: string) {
+  return useQuery({
+    queryKey: QK_WIFI.payments(status),
+    queryFn: () => getWifiPayments({ data: { status } }),
+  });
+}
+
+export function useWifiAccounts() {
+  return useQuery({ queryKey: QK_WIFI.accounts, queryFn: () => getWifiAccounts() });
+}
+
+export function useSetWifiAccountActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { id: string; is_active: boolean }) => setWifiAccountActive({ data }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: QK_WIFI.accounts });
+      toast.success(vars.is_active ? "Wi-Fi access restored" : "Wi-Fi access suspended");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useStudentWifiInfo(studentId: string) {
+  return useQuery({
+    queryKey: QK_WIFI.studentInfo(studentId),
+    queryFn: () => getStudentWifiInfo({ data: { student_id: studentId } }),
+    enabled: !!studentId,
+  });
+}

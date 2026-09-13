@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, CreditCard, BookOpen,
   Zap, Phone, LogOut, ChevronRight, CheckCircle2,
-  AlertTriangle, DoorOpen, User, Briefcase, MessageCircle, X,
+  AlertTriangle, DoorOpen, User, Briefcase, MessageCircle, X, Wifi,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
-import { useStudent, useSettings, useActiveInternships } from "@/lib/queries";
-import { initials } from "@/lib/hostel-store";
+import { useStudent, useSettings, useActiveInternships, useStudentWifiInfo } from "@/lib/queries";
+import { initials, fmtDate } from "@/lib/hostel-store";
 
 export const Route = createFileRoute("/student-home")({
   head: () => ({ meta: [{ title: "My Account — SME Hostels" }] }),
@@ -26,6 +26,7 @@ function StudentHome() {
   const { data: student, isLoading } = useStudent(currentId);
   const { data: settings } = useSettings();
   const { data: internships = [] } = useActiveInternships();
+  const { data: wifiInfo } = useStudentWifiInfo(currentId);
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
   useEffect(() => {
@@ -337,6 +338,9 @@ function StudentHome() {
       {/* ── WhatsApp channel + Internships ── */}
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pb-2 space-y-6">
 
+        {/* Wi-Fi Card */}
+        <WifiCard wifiInfo={wifiInfo} />
+
         {/* WhatsApp Channel */}
         {settings?.whatsapp_channel_url && (
           <div className="flex items-center justify-between rounded-2xl border border-[#25D366]/30 bg-[#25D366]/5 px-5 py-4">
@@ -430,6 +434,114 @@ function StudentHome() {
           {settings?.address ? ` · ${settings.address}` : ""}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Wi-Fi Card ────────────────────────────────────────────────────────────────
+
+function WifiCard({ wifiInfo }: { wifiInfo: any }) {
+  const WIFI_URL = "https://wifi.sme-hostel.site";
+
+  // No wifi account yet
+  if (!wifiInfo?.account) {
+    return (
+      <div className="rounded-2xl border border-border bg-muted/30 px-5 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Wifi className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">SME Hostels Wi-Fi</div>
+              <div className="text-xs text-muted-foreground">No Wi-Fi account set up yet</div>
+            </div>
+          </div>
+          <a
+            href={WIFI_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition"
+          >
+            Set up Wi-Fi
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const sub = wifiInfo.subscription;
+  const voucher = wifiInfo.voucher;
+  const isActive = sub?.status === "active";
+
+  // Time left calculation
+  function timeLeft(iso: string): string {
+    const diff = new Date(iso).getTime() - Date.now();
+    if (diff <= 0) return "Expired";
+    const hours = Math.floor(diff / 3_600_000);
+    if (hours < 1) return `${Math.floor(diff / 60_000)} min left`;
+    if (hours < 24) return `${hours}h left`;
+    return `${Math.floor(hours / 24)}d ${hours % 24}h left`;
+  }
+
+  return (
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Wifi className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold">SME Hostels Wi-Fi</div>
+            <div className="text-xs text-muted-foreground">@{wifiInfo.account.username}</div>
+          </div>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${wifiInfo.account.is_active ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+          {wifiInfo.account.is_active ? "Active" : "Suspended"}
+        </span>
+      </div>
+
+      {/* Active subscription */}
+      {isActive && sub ? (
+        <div className="rounded-xl bg-white/60 p-3 space-y-1.5 mb-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Package</span>
+            <span className="font-semibold">{(sub.wifi_packages as any)?.name ?? "—"}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Expires</span>
+            <span className="font-semibold">{sub.expires_at ? fmtDate(new Date(sub.expires_at).getTime()) : "—"}</span>
+          </div>
+          {sub.expires_at && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Time left</span>
+              <span className="font-semibold text-primary">{timeLeft(sub.expires_at)}</span>
+            </div>
+          )}
+          {voucher && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Voucher</span>
+              <span className="font-mono font-bold tracking-wider text-primary">{voucher.voucher_code}</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl bg-white/60 p-3 mb-3 text-sm text-muted-foreground text-center">
+          No active subscription
+        </div>
+      )}
+
+      {/* CTA */}
+      <a
+        href={WIFI_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition"
+      >
+        <Wifi className="h-4 w-4" />
+        {isActive ? "Buy another package" : "Buy Wi-Fi package"}
+      </a>
     </div>
   );
 }

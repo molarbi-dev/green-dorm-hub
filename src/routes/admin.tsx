@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Search, Plus, Edit3, Trash2, X, Save,
   CheckCircle2, XCircle, AlertTriangle, Copy, Check, Send,
   FileText, ArrowRight, MoreHorizontal, Lock, Receipt, Briefcase,
-  Upload, Loader2,
+  Upload, Loader2, Wifi, WifiOff, PackageOpen, CreditCard, ShieldCheck,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar,
@@ -31,6 +31,8 @@ import {
   useAllReceipts, useReviewReceipt,
   useAllPoliciesAdmin, useCreatePolicy, useUpdatePolicy, useDeletePolicy,
   useInternships, useCreateInternship, useUpdateInternship, useDeleteInternship,
+  useWifiPackages, useCreateWifiPackage, useUpdateWifiPackage, useDeleteWifiPackage,
+  useWifiSubscriptions, useWifiPayments, useWifiAccounts, useSetWifiAccountActive,
 } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
@@ -41,9 +43,10 @@ export const Route = createFileRoute("/admin")({
 type Nav =
   | "dashboard" | "students" | "rooms" | "meters"
   | "regfees" | "hostelfees" | "checkins"
-  | "sms" | "reports" | "settings" | "receipts" | "policies" | "internships";
+  | "sms" | "reports" | "settings" | "receipts" | "policies" | "internships"
+  | "wifi-packages" | "wifi-subscriptions" | "wifi-payments" | "wifi-accounts";
 
-const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard }[] = [
+const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard; group?: string }[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { key: "students", label: "Students", icon: Users },
   { key: "rooms", label: "Rooms", icon: DoorOpen },
@@ -57,6 +60,11 @@ const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "internships", label: "Internships", icon: Briefcase },
   { key: "policies", label: "Policies", icon: FileText },
   { key: "settings", label: "Settings", icon: SettingsIcon },
+  // Wi-Fi
+  { key: "wifi-packages", label: "Wi-Fi Packages", icon: PackageOpen, group: "wifi" },
+  { key: "wifi-subscriptions", label: "Subscriptions", icon: Wifi, group: "wifi" },
+  { key: "wifi-payments", label: "Wi-Fi Payments", icon: CreditCard, group: "wifi" },
+  { key: "wifi-accounts", label: "Wi-Fi Accounts", icon: ShieldCheck, group: "wifi" },
 ];
 
 const COLORS = { primary: "#4CAF50", soft: "#66BB6A", mint: "#A5D6A7", blue: "#0EA5E9", amber: "#F59E0B", violet: "#8B5CF6" };
@@ -80,14 +88,23 @@ function Admin() {
           {!collapsed && <div><div className="text-xs uppercase tracking-wider text-muted-foreground">Admin</div><div className="text-sm font-bold leading-tight">{settings?.hostel_name}</div></div>}
         </div>
         <div className="flex-1 space-y-0.5 overflow-y-auto px-2">
-          {NAV.map((n) => {
+          {NAV.map((n, i) => {
             const active = n.key === page;
+            const isFirstWifi = n.group === "wifi" && (i === 0 || NAV[i - 1].group !== "wifi");
             return (
-              <button key={n.key} onClick={() => setPage(n.key)} title={collapsed ? n.label : undefined}
-                className={`relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-gradient-primary text-white shadow-soft" : "text-foreground/80 hover:bg-muted/50"}`}>
-                <n.icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="truncate">{n.label}</span>}
-              </button>
+              <div key={n.key}>
+                {isFirstWifi && !collapsed && (
+                  <div className="mt-3 mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                    <Wifi className="h-3 w-3" /> Wi-Fi
+                  </div>
+                )}
+                {isFirstWifi && collapsed && <div className="mt-3 mb-1 border-t border-border mx-2" />}
+                <button key={n.key} onClick={() => setPage(n.key)} title={collapsed ? n.label : undefined}
+                  className={`relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-gradient-primary text-white shadow-soft" : "text-foreground/80 hover:bg-muted/50"}`}>
+                  <n.icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span className="truncate">{n.label}</span>}
+                </button>
+              </div>
             );
           })}
         </div>
@@ -117,6 +134,10 @@ function Admin() {
             {page === "internships" && <InternshipsPage />}
             {page === "policies" && <PoliciesPage />}
             {page === "settings" && <SettingsPage />}
+            {page === "wifi-packages" && <WifiPackagesPage />}
+            {page === "wifi-subscriptions" && <WifiSubscriptionsPage />}
+            {page === "wifi-payments" && <WifiPaymentsPage />}
+            {page === "wifi-accounts" && <WifiAccountsPage />}
           </div>
         </div>
       </main>
@@ -1757,6 +1778,377 @@ function ElectricityReportTab() {
           })}
         </div>
       </SectionPanel>
+    </div>
+  );
+}
+
+/* =========================  WIFI PACKAGES  ========================= */
+
+function WifiPackagesPage() {
+  const { data: packages = [], isLoading } = useWifiPackages();
+  const createMut = useCreateWifiPackage();
+  const updateMut = useUpdateWifiPackage();
+  const deleteMut = useDeleteWifiPackage();
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [del, setDel] = useState<any | null>(null);
+
+  const emptyForm = { name: "", description: "", price: 0, duration_hours: 24, bandwidth_limit_mbps: 5, data_limit_gb: "", is_active: true };
+  const [form, setForm] = useState(emptyForm);
+
+  function startAdd() { setForm(emptyForm); setAdding(true); }
+  function startEdit(pkg: any) {
+    setForm({ name: pkg.name, description: pkg.description ?? "", price: pkg.price, duration_hours: pkg.duration_hours, bandwidth_limit_mbps: pkg.bandwidth_limit_mbps, data_limit_gb: pkg.data_limit_gb ?? "", is_active: pkg.is_active });
+    setEditing(pkg);
+  }
+
+  function save() {
+    const payload = { name: form.name, description: form.description || undefined, price: Number(form.price), duration_hours: Number(form.duration_hours), bandwidth_limit_mbps: Number(form.bandwidth_limit_mbps), data_limit_gb: form.data_limit_gb ? Number(form.data_limit_gb) : null, is_active: form.is_active };
+    if (editing) {
+      updateMut.mutate({ id: editing.id, patch: payload }, { onSuccess: () => setEditing(null) });
+    } else {
+      createMut.mutate(payload, { onSuccess: () => setAdding(false) });
+    }
+  }
+
+  const statusBadge = (active: boolean) => (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+      {active ? "Active" : "Inactive"}
+    </span>
+  );
+
+  return (
+    <div className="space-y-4">
+      <StickyHeader title="Wi-Fi Packages" subtitle={`${packages.length} packages`}
+        actions={
+          <button onClick={startAdd} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+            <Plus className="h-4 w-4" /> Add package
+          </button>
+        }
+      />
+
+      {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {packages.map((pkg: any) => (
+          <div key={pkg.id} className="squircle bg-white p-5 shadow-soft">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="text-base font-bold">{pkg.name}</div>
+                  {statusBadge(pkg.is_active)}
+                </div>
+                {pkg.description && <div className="mt-1 text-xs text-muted-foreground">{pkg.description}</div>}
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => startEdit(pkg)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-primary/10"><Edit3 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setDel(pkg)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-destructive/10 text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl bg-muted/40 px-3 py-2">
+                <div className="text-muted-foreground">Price</div>
+                <div className="font-bold text-primary">{fmtGHS(pkg.price)}</div>
+              </div>
+              <div className="rounded-xl bg-muted/40 px-3 py-2">
+                <div className="text-muted-foreground">Duration</div>
+                <div className="font-semibold">{pkg.duration_hours < 24 ? `${pkg.duration_hours}h` : `${Math.round(pkg.duration_hours / 24)}d`}</div>
+              </div>
+              <div className="rounded-xl bg-muted/40 px-3 py-2">
+                <div className="text-muted-foreground">Speed</div>
+                <div className="font-semibold">{pkg.bandwidth_limit_mbps} Mbps</div>
+              </div>
+              <div className="rounded-xl bg-muted/40 px-3 py-2">
+                <div className="text-muted-foreground">Data</div>
+                <div className="font-semibold">{pkg.data_limit_gb ? `${pkg.data_limit_gb} GB` : "Unlimited"}</div>
+              </div>
+            </div>
+            <button onClick={() => updateMut.mutate({ id: pkg.id, patch: { is_active: !pkg.is_active } })}
+              className="mt-3 w-full rounded-xl border border-border py-1.5 text-xs font-medium hover:bg-muted/40 transition">
+              {pkg.is_active ? "Deactivate" : "Activate"}
+            </button>
+          </div>
+        ))}
+        {packages.length === 0 && !isLoading && (
+          <div className="col-span-full py-8 text-center text-sm text-muted-foreground">No packages yet. Add one above.</div>
+        )}
+      </div>
+
+      {(adding || editing) && (
+        <Modal title={editing ? "Edit Package" : "Add Wi-Fi Package"} onClose={() => { setAdding(false); setEditing(null); }}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="Package name *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+            <FormField label="Price (GHS) *" type="number" value={String(form.price)} onChange={(v) => setForm({ ...form, price: Number(v) })} />
+            <FormField label="Duration (hours) *" type="number" value={String(form.duration_hours)} onChange={(v) => setForm({ ...form, duration_hours: Number(v) })} />
+            <FormField label="Speed (Mbps) *" type="number" value={String(form.bandwidth_limit_mbps)} onChange={(v) => setForm({ ...form, bandwidth_limit_mbps: Number(v) })} />
+            <FormField label="Data limit (GB, blank = unlimited)" value={String(form.data_limit_gb)} onChange={(v) => setForm({ ...form, data_limit_gb: v })} />
+            <FormField label="Description (optional)" value={form.description} onChange={(v) => setForm({ ...form, description: v })} />
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="h-4 w-4" />
+              Active (visible to students)
+            </label>
+          </div>
+          <div className="mt-5 flex justify-end gap-2">
+            <button onClick={() => { setAdding(false); setEditing(null); }} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
+            <button onClick={save} disabled={!form.name.trim() || createMut.isPending || updateMut.isPending}
+              className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+              {createMut.isPending || updateMut.isPending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {del && (
+        <ConfirmModal title={`Delete "${del.name}"?`} body="This will remove the package. Existing subscriptions are not affected."
+          onCancel={() => setDel(null)} onConfirm={() => { deleteMut.mutate(del.id); setDel(null); }} />
+      )}
+    </div>
+  );
+}
+
+/* =========================  WIFI SUBSCRIPTIONS  ========================= */
+
+function WifiSubscriptionsPage() {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [q, setQ] = useState("");
+  const { data: subs = [], isLoading } = useWifiSubscriptions(statusFilter !== "all" ? statusFilter : undefined);
+
+  const filtered = subs.filter((s: any) =>
+    !q || `${s.student_name ?? ""} ${s.package_name ?? ""} ${s.room_no ?? ""}`.toLowerCase().includes(q.toLowerCase())
+  );
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = { active: "bg-primary/10 text-primary", pending: "bg-amber-100 text-amber-700", expired: "bg-muted text-muted-foreground", cancelled: "bg-destructive/10 text-destructive", suspended: "bg-orange-100 text-orange-700" };
+    return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${map[status] ?? "bg-muted text-muted-foreground"}`}>{status}</span>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <StickyHeader title="Wi-Fi Subscriptions" subtitle={`${filtered.length} shown`} />
+
+      <div className="grid grid-cols-3 gap-3">
+        <MiniStat label="Active" value={subs.filter((s: any) => s.status === "active").length} accent="primary" />
+        <MiniStat label="Pending" value={subs.filter((s: any) => s.status === "pending").length} accent="amber" />
+        <MiniStat label="Expired" value={subs.filter((s: any) => s.status === "expired").length} />
+      </div>
+
+      <div className="squircle bg-white p-3 shadow-soft flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search student, package, room…"
+            className="w-full rounded-xl bg-muted/40 py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl bg-muted/40 px-3 py-2.5 text-sm">
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="expired">Expired</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>}
+
+      <div className="squircle bg-white shadow-soft overflow-hidden">
+        <div className="divide-y divide-border">
+          {filtered.map((s: any) => (
+            <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {initials(s.student_name ?? "?")}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold truncate">{s.student_name ?? "Unknown"}</span>
+                  {statusBadge(s.status)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {s.package_name ?? "—"} · Room {s.room_no ?? "—"}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-xs font-medium">{fmtGHS(s.price_paid)}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {s.expires_at ? `Expires ${fmtDate(new Date(s.expires_at).getTime())}` : fmtDate(new Date(s.created_at).getTime())}
+                </div>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && !isLoading && (
+            <div className="py-8 text-center text-sm text-muted-foreground">No subscriptions found.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================  WIFI PAYMENTS  ========================= */
+
+function WifiPaymentsPage() {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [q, setQ] = useState("");
+  const { data: payments = [], isLoading } = useWifiPayments(statusFilter !== "all" ? statusFilter : undefined);
+
+  const filtered = payments.filter((p: any) =>
+    !q || `${p.student_name ?? ""} ${p.reference} ${p.room_no ?? ""} ${p.package_name ?? ""}`.toLowerCase().includes(q.toLowerCase())
+  );
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = { success: "bg-primary/10 text-primary", pending: "bg-amber-100 text-amber-700", failed: "bg-destructive/10 text-destructive", refunded: "bg-muted text-muted-foreground" };
+    return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${map[status] ?? "bg-muted text-muted-foreground"}`}>{status}</span>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <StickyHeader title="Wi-Fi Payments" subtitle={`${filtered.length} shown`} />
+
+      <div className="grid grid-cols-3 gap-3">
+        <MiniStat label="Successful" value={payments.filter((p: any) => p.status === "success").length} accent="primary" />
+        <MiniStat label="Pending" value={payments.filter((p: any) => p.status === "pending").length} accent="amber" />
+        <MiniStat label="Failed" value={payments.filter((p: any) => p.status === "failed").length} accent="destructive" />
+      </div>
+
+      <div className="squircle bg-white p-3 shadow-soft flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search student, reference, package…"
+            className="w-full rounded-xl bg-muted/40 py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl bg-muted/40 px-3 py-2.5 text-sm">
+          <option value="all">All statuses</option>
+          <option value="success">Successful</option>
+          <option value="pending">Pending</option>
+          <option value="failed">Failed</option>
+          <option value="refunded">Refunded</option>
+        </select>
+      </div>
+
+      {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>}
+
+      <div className="squircle bg-white shadow-soft overflow-hidden">
+        <div className="divide-y divide-border">
+          {filtered.map((p: any) => (
+            <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">
+                {initials(p.student_name ?? "?")}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold truncate">{p.student_name ?? "Unknown"}</span>
+                  {statusBadge(p.status)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {p.package_name ?? "—"} · {p.reference} · {p.provider}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-sm font-bold text-primary">{fmtGHS(p.amount)}</div>
+                <div className="text-[11px] text-muted-foreground">{fmtDate(new Date(p.created_at).getTime())}</div>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && !isLoading && (
+            <div className="py-8 text-center text-sm text-muted-foreground">No payments found.</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================  WIFI ACCOUNTS  ========================= */
+
+function WifiAccountsPage() {
+  const [q, setQ] = useState("");
+  const { data: accounts = [], isLoading } = useWifiAccounts();
+  const toggleMut = useSetWifiAccountActive();
+  const [confirm, setConfirm] = useState<{ account: any; action: "suspend" | "restore" } | null>(null);
+
+  const filtered = accounts.filter((a: any) =>
+    !q || `${a.student_name ?? ""} ${a.username} ${a.room_no ?? ""}`.toLowerCase().includes(q.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      <StickyHeader title="Wi-Fi Accounts" subtitle={`${accounts.length} accounts`} />
+
+      <div className="grid grid-cols-2 gap-3">
+        <MiniStat label="Active" value={accounts.filter((a: any) => a.is_active).length} accent="primary" />
+        <MiniStat label="Suspended" value={accounts.filter((a: any) => !a.is_active).length} accent="destructive" />
+      </div>
+
+      <div className="squircle bg-white p-3 shadow-soft">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search student, username, room…"
+            className="w-full rounded-xl bg-muted/40 py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+      </div>
+
+      {isLoading && <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>}
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {filtered.map((a: any) => (
+          <div key={a.id} className="squircle bg-white p-4 shadow-soft">
+            <div className="flex items-start gap-3">
+              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ${a.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                {initials(a.student_name ?? "?")}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold truncate">{a.student_name ?? "Unknown"}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${a.is_active ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                    {a.is_active ? "Active" : "Suspended"}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">@{a.username} · Room {a.room_no ?? "—"}</div>
+                {a.active_subscription && (
+                  <div className="mt-1 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary text-[10px] font-medium">
+                      <Wifi className="h-3 w-3" /> {a.active_subscription}
+                      {a.expires_at && ` · expires ${fmtDate(new Date(a.expires_at).getTime())}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setConfirm({ account: a, action: a.is_active ? "suspend" : "restore" })}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${a.is_active ? "bg-destructive/10 text-destructive hover:bg-destructive/20" : "bg-primary/10 text-primary hover:bg-primary/20"}`}
+              >
+                {a.is_active ? "Suspend" : "Restore"}
+              </button>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && !isLoading && (
+          <div className="col-span-full py-8 text-center text-sm text-muted-foreground">No Wi-Fi accounts found.</div>
+        )}
+      </div>
+
+      {confirm && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 animate-fade-in" onClick={() => setConfirm(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm squircle bg-white p-6 shadow-glass animate-pop">
+            <div className="text-lg font-bold">{confirm.action === "suspend" ? "Suspend Wi-Fi?" : "Restore Wi-Fi?"}</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              {confirm.action === "suspend"
+                ? `This will block ${confirm.account.student_name ?? "this student"} from connecting to Wi-Fi.`
+                : `This will restore Wi-Fi access for ${confirm.account.student_name ?? "this student"}.`}
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button onClick={() => setConfirm(null)} className="rounded-2xl border border-border bg-white py-2.5 text-sm font-medium">Cancel</button>
+              <button
+                onClick={() => {
+                  toggleMut.mutate({ id: confirm.account.id, is_active: confirm.action === "restore" });
+                  setConfirm(null);
+                }}
+                className={`rounded-2xl py-2.5 text-sm font-semibold text-white ${confirm.action === "suspend" ? "bg-destructive" : "bg-primary"}`}
+              >
+                {confirm.action === "suspend" ? "Suspend" : "Restore"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
