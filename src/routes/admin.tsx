@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Search, Plus, Edit3, Trash2, X, Save,
   CheckCircle2, XCircle, AlertTriangle, Copy, Check, Send,
   FileText, ArrowRight, MoreHorizontal, Lock, Receipt, Briefcase,
-  Upload, Loader2, Wifi, WifiOff, PackageOpen, CreditCard, ShieldCheck,
+  Upload, Loader2, Wifi, WifiOff, PackageOpen, CreditCard, ShieldCheck, Bus,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar,
@@ -33,6 +33,7 @@ import {
   useInternships, useCreateInternship, useUpdateInternship, useDeleteInternship,
   useWifiPackages, useCreateWifiPackage, useUpdateWifiPackage, useDeleteWifiPackage,
   useWifiSubscriptions, useWifiPayments, useWifiAccounts, useSetWifiAccountActive,
+  useTransportAgencies, useCreateTransportAgency, useUpdateTransportAgency, useDeleteTransportAgency,
 } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
@@ -44,7 +45,8 @@ type Nav =
   | "dashboard" | "students" | "rooms" | "meters"
   | "regfees" | "hostelfees" | "checkins"
   | "sms" | "reports" | "settings" | "receipts" | "policies" | "internships"
-  | "wifi-packages" | "wifi-subscriptions" | "wifi-payments" | "wifi-accounts";
+  | "wifi-packages" | "wifi-subscriptions" | "wifi-payments" | "wifi-accounts"
+  | "transportation";
 
 const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard; group?: string }[] = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -58,6 +60,7 @@ const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard; group?: stri
   { key: "reports", label: "Reports", icon: BarChart3 },
   { key: "receipts", label: "Receipts", icon: Receipt },
   { key: "internships", label: "Internships", icon: Briefcase },
+  { key: "transportation", label: "Transport", icon: Bus },
   { key: "policies", label: "Policies", icon: FileText },
   { key: "settings", label: "Settings", icon: SettingsIcon },
   // Wi-Fi
@@ -132,6 +135,7 @@ function Admin() {
             {page === "reports" && <ReportsPage />}
             {page === "receipts" && <ReceiptsPage />}
             {page === "internships" && <InternshipsPage />}
+            {page === "transportation" && <TransportationPage />}
             {page === "policies" && <PoliciesPage />}
             {page === "settings" && <SettingsPage />}
             {page === "wifi-packages" && <WifiPackagesPage />}
@@ -1779,6 +1783,197 @@ function ElectricityReportTab() {
         </div>
       </SectionPanel>
     </div>
+  );
+}
+
+/* =========================  TRANSPORTATION  ========================= */
+
+function TransportationPage() {
+  const { data: agencies = [] } = useTransportAgencies();
+  const createMut = useCreateTransportAgency();
+  const updateMut = useUpdateTransportAgency();
+  const deleteMut = useDeleteTransportAgency();
+  const [edit, setEdit] = useState<any | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [del, setDel] = useState<any | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <StickyHeader title="Transport Agencies" subtitle={`${agencies.length} agencies listed`}
+        actions={
+          <button onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+            <Plus className="h-4 w-4" /> Add Agency
+          </button>
+        }
+      />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <MiniStat label="Total" value={agencies.length} />
+        <MiniStat label="Active" value={agencies.filter((a: any) => a.active).length} accent="primary" />
+        <MiniStat label="Hidden" value={agencies.filter((a: any) => !a.active).length} accent="amber" />
+      </div>
+
+      <div className="space-y-2">
+        {agencies.map((agency: any) => (
+          <div key={agency.id} className={`squircle bg-white p-4 shadow-soft ${!agency.active ? "opacity-60" : ""}`}>
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary overflow-hidden">
+                {agency.logo_url
+                  ? <img src={agency.logo_url} alt={agency.agency_name} className="h-full w-full object-contain p-1" />
+                  : <Bus className="h-5 w-5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-bold">{agency.agency_name}</div>
+                  {agency.route && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary font-medium">
+                      {agency.route}
+                    </span>
+                  )}
+                  {!agency.active && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-700">Hidden</span>}
+                </div>
+                {agency.description && <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{agency.description}</div>}
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                  {agency.pickup_location && <span>📍 From: {agency.pickup_location}</span>}
+                  {agency.destination && <span>🏁 To: {agency.destination}</span>}
+                  {agency.departure_time && <span>🕐 {agency.departure_time}</span>}
+                  {agency.price && <span>💰 {agency.price}</span>}
+                  {agency.contact_phone && <span>📞 {agency.contact_phone}</span>}
+                  {agency.contact_whatsapp && <span>💬 {agency.contact_whatsapp}</span>}
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button onClick={() => setEdit(agency)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-primary/10"><Edit3 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setDel(agency)} className="grid h-8 w-8 place-items-center rounded-lg bg-muted hover:bg-destructive/10 text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+          </div>
+        ))}
+        {agencies.length === 0 && (
+          <div className="py-8 text-center text-sm text-muted-foreground">No transport agencies added yet.</div>
+        )}
+      </div>
+
+      {(adding || edit) && (
+        <TransportationModal
+          initial={edit ?? undefined}
+          onClose={() => { setAdding(false); setEdit(null); }}
+          onSave={(data) => {
+            if (edit) updateMut.mutate({ id: edit.id, patch: data });
+            else createMut.mutate(data as any);
+            setAdding(false); setEdit(null);
+          }}
+        />
+      )}
+      {del && (
+        <ConfirmModal
+          title={`Remove ${del.agency_name}?`}
+          body="Students will no longer see this agency."
+          onCancel={() => setDel(null)}
+          onConfirm={() => { deleteMut.mutate(del.id); setDel(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TransportationModal({ initial, onClose, onSave }: {
+  initial?: any;
+  onClose: () => void;
+  onSave: (data: any) => void;
+}) {
+  const [f, setF] = useState({
+    agency_name: initial?.agency_name ?? "",
+    route: initial?.route ?? "",
+    description: initial?.description ?? "",
+    contact_person: initial?.contact_person ?? "",
+    contact_phone: initial?.contact_phone ?? "",
+    contact_whatsapp: initial?.contact_whatsapp ?? "",
+    pickup_location: initial?.pickup_location ?? "",
+    destination: initial?.destination ?? "",
+    departure_time: initial?.departure_time ?? "",
+    price: initial?.price ?? "",
+    logo_url: initial?.logo_url ?? "",
+    active: initial?.active ?? true,
+  });
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(initial?.logo_url ?? null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { uploadToImgur } = await import("@/lib/imgur");
+      const url = await uploadToImgur(file);
+      setF((prev) => ({ ...prev, logo_url: url }));
+      setPreview(url);
+      toast.success("Logo uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <Modal title={initial ? "Edit Agency" : "Add Transport Agency"} onClose={onClose}>
+      {/* Logo upload */}
+      <div className="mb-4 flex items-center gap-4">
+        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 flex items-center justify-center">
+          {preview
+            ? <img src={preview} alt="Logo" className="h-full w-full object-contain p-1" />
+            : <Bus className="h-6 w-6 text-muted-foreground" />}
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="text-xs font-medium mb-1">Agency Logo</div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleLogoFile} className="hidden" />
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium hover:bg-muted/40 disabled:opacity-50">
+            <Upload className="h-3.5 w-3.5" /> {preview ? "Change logo" : "Upload logo"}
+          </button>
+          {preview && (
+            <button type="button" onClick={() => { setPreview(null); setF((p) => ({ ...p, logo_url: "" })); }}
+              className="ml-2 text-xs text-muted-foreground hover:text-destructive">Remove</button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FormField label="Agency Name *" value={f.agency_name} onChange={(v) => setF({ ...f, agency_name: v })} />
+        <FormField label="Route (e.g. Tarkwa → Accra)" value={f.route} onChange={(v) => setF({ ...f, route: v })} />
+        <FormField label="Pickup Location" value={f.pickup_location} onChange={(v) => setF({ ...f, pickup_location: v })} />
+        <FormField label="Destination" value={f.destination} onChange={(v) => setF({ ...f, destination: v })} />
+        <FormField label="Departure Time" value={f.departure_time} onChange={(v) => setF({ ...f, departure_time: v })} />
+        <FormField label="Price (e.g. GHS 50)" value={f.price} onChange={(v) => setF({ ...f, price: v })} />
+        <FormField label="Contact Person" value={f.contact_person} onChange={(v) => setF({ ...f, contact_person: v })} />
+        <FormField label="Contact Phone" value={f.contact_phone} onChange={(v) => setF({ ...f, contact_phone: v })} />
+        <FormField label="WhatsApp Number" value={f.contact_whatsapp} onChange={(v) => setF({ ...f, contact_whatsapp: v })} />
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-medium">Description</label>
+          <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} rows={2}
+            placeholder="e.g. Daily bus service, AC, luggage allowed..."
+            className="w-full rounded-xl border border-border bg-white p-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} className="h-4 w-4" />
+          Visible to students
+        </label>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
+        <button onClick={() => onSave(f)} disabled={!f.agency_name.trim() || uploading}
+          className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          Save
+        </button>
+      </div>
+    </Modal>
   );
 }
 

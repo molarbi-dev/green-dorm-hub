@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, CreditCard, BookOpen,
   Zap, Phone, LogOut, ChevronRight, CheckCircle2,
-  AlertTriangle, DoorOpen, User, Briefcase, MessageCircle, X, Wifi,
+  AlertTriangle, DoorOpen, User, Briefcase, MessageCircle, X, Wifi, Bus,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
-import { useStudent, useSettings, useActiveInternships, useStudentWifiInfo } from "@/lib/queries";
+import { useStudent, useSettings, useActiveInternships, useStudentWifiInfo, useActiveTransportAgencies } from "@/lib/queries";
 import { initials, fmtDate } from "@/lib/hostel-store";
 
 export const Route = createFileRoute("/student-home")({
@@ -26,6 +26,7 @@ function StudentHome() {
   const { data: student, isLoading } = useStudent(currentId);
   const { data: settings } = useSettings();
   const { data: internships = [] } = useActiveInternships();
+  const { data: transportAgencies = [] } = useActiveTransportAgencies();
   const { data: wifiInfo } = useStudentWifiInfo(currentId);
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
@@ -417,6 +418,79 @@ function StudentHome() {
                         <span className="shrink-0">📍</span>
                         <span>{co.address}</span>
                       </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Transport Agencies */}
+        {transportAgencies.length > 0 && (
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <Bus className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Transport Services</span>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{transportAgencies.length}</span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {transportAgencies.map((agency: any) => (
+                <div key={agency.id} className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-border/50">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary overflow-hidden">
+                      {agency.logo_url
+                        ? <img src={agency.logo_url} alt={agency.agency_name} className="h-full w-full object-contain p-1" />
+                        : <Bus className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-sm font-bold truncate">{agency.agency_name}</span>
+                        {agency.route && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary font-medium">{agency.route}</span>
+                        )}
+                      </div>
+                      {agency.description && <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed line-clamp-2">{agency.description}</p>}
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs">
+                    {agency.pickup_location && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span>📍</span><span className="truncate">From: {agency.pickup_location}</span>
+                      </div>
+                    )}
+                    {agency.destination && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span>🏁</span><span className="truncate">To: {agency.destination}</span>
+                      </div>
+                    )}
+                    {agency.departure_time && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <span>🕐</span><span>{agency.departure_time}</span>
+                      </div>
+                    )}
+                    {agency.price && (
+                      <div className="flex items-center gap-1.5 font-semibold text-primary">
+                        <span>💰</span><span>{agency.price}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+                    {agency.contact_person && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <User className="h-3.5 w-3.5 shrink-0" /><span>{agency.contact_person}</span>
+                      </div>
+                    )}
+                    {agency.contact_phone && (
+                      <a href={`tel:${agency.contact_phone}`} className="flex items-center gap-2 text-xs text-primary hover:underline">
+                        <Phone className="h-3.5 w-3.5 shrink-0" /><span>{agency.contact_phone}</span>
+                      </a>
+                    )}
+                    {agency.contact_whatsapp && (
+                      <a href={`https://wa.me/${agency.contact_whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs text-[#25D366] hover:underline">
+                        <MessageCircle className="h-3.5 w-3.5 shrink-0" /><span>{agency.contact_whatsapp}</span>
+                      </a>
                     )}
                   </div>
                 </div>

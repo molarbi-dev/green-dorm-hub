@@ -615,3 +615,63 @@ export function useStudentWifiInfo(studentId: string) {
     enabled: !!studentId,
   });
 }
+
+// ── Transportation Agencies ───────────────────────────────────────────────────
+
+import {
+  getTransportAgencies, getActiveTransportAgencies,
+  createTransportAgency, updateTransportAgency, deleteTransportAgency,
+} from "./api/transportation.functions";
+
+export const QK_TRANSPORT = {
+  all: ["transport-agencies"] as const,
+  active: ["transport-agencies", "active"] as const,
+};
+
+export function useTransportAgencies() {
+  return useQuery({ queryKey: QK_TRANSPORT.all, queryFn: () => getTransportAgencies() });
+}
+
+export function useActiveTransportAgencies() {
+  return useQuery({ queryKey: QK_TRANSPORT.active, queryFn: () => getActiveTransportAgencies() });
+}
+
+export function useCreateTransportAgency() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof createTransportAgency>[0]["data"]) =>
+      createTransportAgency({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_TRANSPORT.all });
+      qc.invalidateQueries({ queryKey: QK_TRANSPORT.active });
+      toast.success("Agency added");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateTransportAgency() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof updateTransportAgency>[0]["data"]) =>
+      updateTransportAgency({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_TRANSPORT.all });
+      qc.invalidateQueries({ queryKey: QK_TRANSPORT.active });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteTransportAgency() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteTransportAgency({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK_TRANSPORT.all });
+      qc.invalidateQueries({ queryKey: QK_TRANSPORT.active });
+      toast.success("Agency removed");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
