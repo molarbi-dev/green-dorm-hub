@@ -3,7 +3,7 @@ import { useState, useMemo, useRef } from "react";
 import {
   User, Phone, MessageCircle, BookOpen, Layers, DoorOpen, ShieldCheck,
   AtSign, Lock, ArrowRight, ArrowLeft, CheckCircle2, FileText, Sparkles,
-  Zap, CreditCard, Loader2, Camera, Upload, X, Eye, EyeOff,
+  Zap, Loader2, Camera, Upload, X, Eye, EyeOff,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
@@ -354,11 +354,7 @@ function Onboarding() {
           {step === 3 && (
             <WhatsAppStep
               form={form}
-              resolvedMeter={resolvedMeter}
-              roomFeeData={roomFeeData}
-              hostelFee={hostelFee}
               settings={settings}
-              studentId={createdStudentId ?? ""}
               onEnter={() => navigate({ to: "/student-home" })}
             />
           )}
@@ -412,9 +408,8 @@ function SelectField({ icon: Icon, label, options, placeholder, ...props }: {
   );
 }
 
-function WhatsAppStep({ form, resolvedMeter, roomFeeData, hostelFee, settings, studentId, onEnter }: {
-  form: Form; resolvedMeter: string | null; roomFeeData: any; hostelFee: number; settings: any;
-  studentId: string; onEnter: () => void;
+function WhatsAppStep({ form, settings, onEnter }: {
+  form: Form; settings: any; onEnter: () => void;
 }) {
   const [joined, setJoined] = useState(false);
 
@@ -457,38 +452,28 @@ function WhatsAppStep({ form, resolvedMeter, roomFeeData, hostelFee, settings, s
         </span>
       </label>
 
-      {/* Registration fee notice */}
-      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-            <CreditCard className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground">Registration fee required</div>
-            <div className="mt-1 text-2xl font-bold text-primary">
-              GHS {settings?.registration_fee?.toLocaleString() ?? "—"}
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              Pay via <strong>bank transfer or MoMo</strong> to management.
-              Use your Student ID as the payment reference.
-              Details are in the Fees section of your portal.
-            </p>
-          </div>
+      {/* Activate account */}
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary mx-auto mb-3">
+          <CheckCircle2 className="h-6 w-6" />
         </div>
+        <div className="text-sm font-semibold text-foreground">Your account is ready</div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Click below to activate your account. Management will verify your details and get you fully set up.
+        </p>
       </div>
 
       <button
         onClick={() => {
           if (!joined) return;
-          // Paystack payment disabled — go straight to portal
           onEnter();
         }}
         disabled={!joined}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">
-        <ArrowRight className="h-4 w-4" /> Enter portal
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[oklch(0.68_0.17_145)] px-5 py-4 text-base font-bold text-white shadow-soft transition hover:opacity-95 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50">
+        <CheckCircle2 className="h-5 w-5" /> Activate System
       </button>
       {!joined && (
-        <p className="text-center text-xs text-muted-foreground">Join the WhatsApp channel above to proceed to payment.</p>
+        <p className="text-center text-xs text-muted-foreground">Join the WhatsApp channel above to activate.</p>
       )}
     </div>
   );
