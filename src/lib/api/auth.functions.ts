@@ -197,10 +197,24 @@ export const resetStudentPassword = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = getSupabaseAdmin();
     const hash = await hashPassword(data.newPassword);
+
+    // Update student password hash
     const { error } = await db
       .from("students")
       .update({ password_hash: hash, updated_at: new Date().toISOString() })
       .eq("id", data.studentId);
     if (error) throw new Error(error.message);
+
+    // Also update wifi_accounts password_hash so login still works
+    // Clear router_password_ciphertext so next wifi login re-encrypts with new password
+    await db
+      .from("wifi_accounts")
+      .update({
+        password_hash: hash,
+        router_password_ciphertext: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("student_id", data.studentId);
+
     return { success: true };
   });
