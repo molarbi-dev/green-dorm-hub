@@ -1988,17 +1988,17 @@ function WifiPackagesPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [del, setDel] = useState<any | null>(null);
 
-  const emptyForm = { name: "", description: "", price: 0, duration_hours: 24, bandwidth_limit_mbps: 5, data_limit_gb: "", is_active: true };
+  const emptyForm = { name: "", description: "", price: 0, duration_hours: 24, bandwidth_limit_mbps: 5, data_limit_gb: "", is_active: true, max_devices: 1 };
   const [form, setForm] = useState(emptyForm);
 
   function startAdd() { setForm(emptyForm); setAdding(true); }
   function startEdit(pkg: any) {
-    setForm({ name: pkg.name, description: pkg.description ?? "", price: pkg.price, duration_hours: pkg.duration_hours, bandwidth_limit_mbps: pkg.bandwidth_limit_mbps, data_limit_gb: pkg.data_limit_gb ?? "", is_active: pkg.is_active });
+    setForm({ name: pkg.name, description: pkg.description ?? "", price: pkg.price, duration_hours: pkg.duration_hours, bandwidth_limit_mbps: pkg.bandwidth_limit_mbps, data_limit_gb: pkg.data_limit_gb ?? "", is_active: pkg.is_active, max_devices: pkg.max_devices ?? 1 });
     setEditing(pkg);
   }
 
   function save() {
-    const payload = { name: form.name, description: form.description || undefined, price: Number(form.price), duration_hours: Number(form.duration_hours), bandwidth_limit_mbps: Number(form.bandwidth_limit_mbps), data_limit_gb: form.data_limit_gb ? Number(form.data_limit_gb) : null, is_active: form.is_active };
+    const payload = { name: form.name, description: form.description || undefined, price: Number(form.price), duration_hours: Number(form.duration_hours), bandwidth_limit_mbps: Number(form.bandwidth_limit_mbps), data_limit_gb: form.data_limit_gb ? Number(form.data_limit_gb) : null, is_active: form.is_active, max_devices: Number(form.max_devices) };
     if (editing) {
       updateMut.mutate({ id: editing.id, patch: payload }, { onSuccess: () => setEditing(null) });
     } else {
@@ -2057,6 +2057,10 @@ function WifiPackagesPage() {
                 <div className="text-muted-foreground">Data</div>
                 <div className="font-semibold">{pkg.data_limit_gb ? `${pkg.data_limit_gb} GB` : "Unlimited"}</div>
               </div>
+              <div className="rounded-xl bg-muted/40 px-3 py-2">
+                <div className="text-muted-foreground">Devices</div>
+                <div className="font-semibold">{pkg.max_devices ?? 1} device{(pkg.max_devices ?? 1) > 1 ? "s" : ""}</div>
+              </div>
             </div>
             <button onClick={() => updateMut.mutate({ id: pkg.id, patch: { is_active: !pkg.is_active } })}
               className="mt-3 w-full rounded-xl border border-border py-1.5 text-xs font-medium hover:bg-muted/40 transition">
@@ -2078,6 +2082,15 @@ function WifiPackagesPage() {
             <FormField label="Speed (Mbps) *" type="number" value={String(form.bandwidth_limit_mbps)} onChange={(v) => setForm({ ...form, bandwidth_limit_mbps: Number(v) })} />
             <FormField label="Data limit (GB, blank = unlimited)" value={String(form.data_limit_gb)} onChange={(v) => setForm({ ...form, data_limit_gb: v })} />
             <FormField label="Description (optional)" value={form.description} onChange={(v) => setForm({ ...form, description: v })} />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-foreground">Max devices *</label>
+              <select value={form.max_devices} onChange={(e) => setForm({ ...form, max_devices: Number(e.target.value) })}
+                className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm">
+                <option value={1}>1 device</option>
+                <option value={2}>2 devices</option>
+                <option value={3}>3 devices</option>
+              </select>
+            </div>
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
               <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="h-4 w-4" />
               Active (visible to students)

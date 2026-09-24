@@ -545,10 +545,9 @@ function WifiCard({ wifiInfo }: { wifiInfo: any }) {
   }
 
   const sub = wifiInfo.subscription;
-  const voucher = wifiInfo.voucher;
   const isActive = sub?.status === "active";
+  const maxDevices = wifiInfo.account.max_devices ?? 1;
 
-  // Time left calculation
   function timeLeft(iso: string): string {
     const diff = new Date(iso).getTime() - Date.now();
     if (diff <= 0) return "Expired";
@@ -593,12 +592,10 @@ function WifiCard({ wifiInfo }: { wifiInfo: any }) {
               <span className="font-semibold text-primary">{timeLeft(sub.expires_at)}</span>
             </div>
           )}
-          {voucher && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Voucher</span>
-              <span className="font-mono font-bold tracking-wider text-primary">{voucher.voucher_code}</span>
-            </div>
-          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Devices</span>
+            <span className="font-semibold">{maxDevices} device{maxDevices > 1 ? "s" : ""}</span>
+          </div>
         </div>
       ) : (
         <div className="rounded-xl bg-white/60 p-3 mb-3 text-sm text-muted-foreground text-center">

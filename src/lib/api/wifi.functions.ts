@@ -12,6 +12,7 @@ export interface WifiPackage {
   duration_hours: number;
   bandwidth_limit_mbps: number;
   data_limit_gb: number | null;
+  max_devices: number;
   is_active: boolean;
   created_at: string;
 }
@@ -73,6 +74,7 @@ const PackageInput = z.object({
   bandwidth_limit_mbps: z.number().min(0.1),
   data_limit_gb: z.number().min(0.1).nullable().optional(),
   is_active: z.boolean().optional(),
+  max_devices: z.number().int().min(1).max(10).optional(),
 });
 
 export const getWifiPackages = createServerFn({ method: "GET" }).handler(async (): Promise<WifiPackage[]> => {
@@ -255,7 +257,7 @@ export const getStudentWifiInfo = createServerFn({ method: "GET" })
     // Get wifi account
     const { data: account } = await db
       .from("wifi_accounts")
-      .select("id, username, is_active")
+      .select("id, username, is_active, max_devices")
       .eq("student_id", data.student_id)
       .maybeSingle();
 
