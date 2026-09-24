@@ -452,6 +452,45 @@ function WhatsAppStep({ form, settings, onEnter }: {
         </span>
       </label>
 
+      {/* Hostel prospectus / requirements PDF download */}
+      <div className="rounded-2xl border border-border bg-white/60 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">Hostel Prospectus</div>
+              <div className="text-xs text-muted-foreground">What to bring, rules, and requirements</div>
+            </div>
+          </div>
+          <a
+            href="/notice-and-details-of-reporting.docx"
+            download
+            className="shrink-0 rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold hover:bg-muted/40 transition"
+          >
+            Download
+          </a>
+        </div>
+      </div>
+
+      {/* Registration fee notice — Hubtel payment will go here when live */}
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-foreground">Almost there!</div>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+              Click <strong>Activate System</strong> to complete your registration.
+              Management will review your details and activate your account.
+              {/* HUBTEL LIVE: replace this section with a payment prompt for the registration fee */}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Activate account */}
       <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary mx-auto mb-3">
