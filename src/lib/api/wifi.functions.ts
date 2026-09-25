@@ -261,7 +261,7 @@ export const getStudentWifiInfo = createServerFn({ method: "GET" })
       .eq("student_id", data.student_id)
       .maybeSingle();
 
-    if (!account) return { account: null, subscription: null, voucher: null };
+    if (!account) return { account: null, subscription: null };
 
     // Get active subscription
     const { data: sub } = await db
@@ -272,14 +272,5 @@ export const getStudentWifiInfo = createServerFn({ method: "GET" })
       .order("starts_at", { ascending: false })
       .maybeSingle();
 
-    // Get active voucher (no PIN — just code for display)
-    const { data: voucher } = await db
-      .from("wifi_vouchers")
-      .select("id, voucher_code, status, issued_at, expires_at, sms_status")
-      .eq("wifi_account_id", account.id)
-      .eq("status", "active")
-      .order("issued_at", { ascending: false })
-      .maybeSingle();
-
-    return { account, subscription: sub, voucher };
+    return { account, subscription: sub };
   });
