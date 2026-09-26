@@ -412,6 +412,7 @@ function WhatsAppStep({ form, settings, onEnter }: {
   form: Form; settings: any; onEnter: () => void;
 }) {
   const [joined, setJoined] = useState(false);
+  const [showActivationModal, setShowActivationModal] = useState(false);
 
   const channelUrl = settings?.whatsapp_channel_url ?? "https://whatsapp.com/channel/";
 
@@ -505,7 +506,7 @@ function WhatsAppStep({ form, settings, onEnter }: {
       <button
         onClick={() => {
           if (!joined) return;
-          onEnter();
+          setShowActivationModal(true);
         }}
         disabled={!joined}
         className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[oklch(0.68_0.17_145)] px-5 py-4 text-base font-bold text-white shadow-soft transition hover:opacity-95 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50">
@@ -513,6 +514,68 @@ function WhatsAppStep({ form, settings, onEnter }: {
       </button>
       {!joined && (
         <p className="text-center text-xs text-muted-foreground">Join the WhatsApp channel above to activate.</p>
+      )}
+
+      {/* Activation modal */}
+      {showActivationModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4 animate-fade-in"
+          onClick={() => setShowActivationModal(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-glass animate-pop">
+
+            <div className="text-center mb-5">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary mx-auto mb-3">
+                <CheckCircle2 className="h-7 w-7" />
+              </div>
+              <h2 className="text-lg font-bold">Activate Your Account</h2>
+              <p className="mt-1 text-sm text-muted-foreground">One-time activation fee</p>
+            </div>
+
+            {/* Price */}
+            <div className="rounded-2xl bg-primary/5 border border-primary/20 p-4 text-center mb-4">
+              <div className="text-3xl font-extrabold text-primary">GHS 80</div>
+              <div className="text-xs text-muted-foreground mt-0.5">One-time system activation</div>
+            </div>
+
+            {/* Perks */}
+            <div className="space-y-2.5 mb-5">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                <p className="text-sm text-foreground">Registration fee is <strong>covered</strong> — no extra charge</p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                <p className="text-sm text-foreground">First <strong>week of Wi-Fi</strong> is completely free</p>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                <p className="text-sm text-foreground">Full access to the <strong>SME Hostels student portal</strong></p>
+              </div>
+            </div>
+
+            {/* SMS notice */}
+            <div className="rounded-2xl bg-muted/60 p-4 mb-5 text-sm text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">📱 You're all set!</strong>
+              <p className="mt-1">Once your activation is confirmed, you'll receive an SMS on <strong>{form.phone}</strong> — we'll reach out as soon as everything is ready for you.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowActivationModal(false)}
+                className="rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition">
+                Go back
+              </button>
+              <button
+                onClick={() => {
+                  setShowActivationModal(false);
+                  onEnter();
+                }}
+                className="rounded-2xl bg-[oklch(0.68_0.17_145)] py-3 text-sm font-bold text-white shadow-soft hover:opacity-95 transition">
+                Confirm & Activate
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
