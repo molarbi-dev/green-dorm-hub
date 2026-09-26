@@ -265,16 +265,18 @@ export const getStudentWifiInfo = createServerFn({ method: "GET" })
 
     if (!account) return { account: null, subscription: null };
 
-    // Get active subscription (must not be expired)
+    // Get active subscription (must not be expired) — use limit(1) to handle multiple active subs
     const now = new Date().toISOString();
-    const { data: sub } = await db
+    const { data: subRows } = await db
       .from("subscriptions")
       .select("id, status, starts_at, expires_at, price_paid, wifi_packages(name, duration_hours)")
       .eq("wifi_account_id", account.id)
       .eq("status", "active")
       .gt("expires_at", now)
       .order("expires_at", { ascending: false })
-      .maybeSingle();
+      .limit(1);
+
+    const sub = subRows?.[0] ?? null;
 
     return { account, subscription: sub };
   });
