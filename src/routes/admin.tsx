@@ -2170,7 +2170,7 @@ function WifiSubscriptionsPage() {
                   {statusBadge(s.status)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {s.package_name ?? "—"} · Room {s.room_no ?? "—"}
+                  {s.package_name ?? "—"} · {s.max_devices ?? 1} device{(s.max_devices ?? 1) > 1 ? "s" : ""} · Room {s.room_no ?? "—"}
                 </div>
               </div>
               <div className="text-right shrink-0">

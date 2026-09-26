@@ -31,6 +31,7 @@ export interface WifiSubscription {
   student_id: string | null;
   room_no: string | null;
   package_name: string | null;
+  max_devices: number;
 }
 
 export interface WifiPayment {
@@ -134,7 +135,7 @@ export const getWifiSubscriptions = createServerFn({ method: "GET" })
       .select(`
         id, wifi_account_id, package_id, status, starts_at, expires_at, price_paid, created_at,
         wifi_accounts ( student_id, students ( id, full_name, room_no ) ),
-        wifi_packages ( name )
+        wifi_packages ( name, max_devices )
       `)
       .order("created_at", { ascending: false });
 
@@ -158,6 +159,7 @@ export const getWifiSubscriptions = createServerFn({ method: "GET" })
       student_id: row.wifi_accounts?.students?.id ?? null,
       room_no: row.wifi_accounts?.students?.room_no ?? null,
       package_name: row.wifi_packages?.name ?? null,
+      max_devices: row.wifi_packages?.max_devices ?? 1,
     }));
   });
 
