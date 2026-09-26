@@ -265,13 +265,15 @@ export const getStudentWifiInfo = createServerFn({ method: "GET" })
 
     if (!account) return { account: null, subscription: null };
 
-    // Get active subscription
+    // Get active subscription (must not be expired)
+    const now = new Date().toISOString();
     const { data: sub } = await db
       .from("subscriptions")
       .select("id, status, starts_at, expires_at, price_paid, wifi_packages(name, duration_hours)")
       .eq("wifi_account_id", account.id)
       .eq("status", "active")
-      .order("starts_at", { ascending: false })
+      .gt("expires_at", now)
+      .order("expires_at", { ascending: false })
       .maybeSingle();
 
     return { account, subscription: sub };
