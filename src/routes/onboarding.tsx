@@ -503,10 +503,6 @@ function WhatsAppStep({ form, settings, onEnter }: {
   );
 }
 
-    </div>
-  );
-}
-
 const GUIDELINES = [
   {
     title: "SME Hostel Pricing & Capacity",
