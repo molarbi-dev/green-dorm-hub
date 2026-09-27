@@ -148,56 +148,34 @@ function StudentHome() {
             </div>
 
             {/* Status */}
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-sm font-semibold text-amber-800">Awaiting payment verification</span>
+                <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-semibold text-primary">Account pending activation</span>
               </div>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                Your account has been created. Management needs to confirm your registration fee payment of{" "}
-                <strong>GHS {regFee.toLocaleString()}</strong> before you can access the portal.
-                Please pay to management directly and ask them to verify your account.
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your registration is complete. We're setting everything up for you —
+                you'll receive an SMS on your registered number as soon as your account is ready.
               </p>
             </div>
 
-            {/* Steps */}
-            <div className="space-y-2">
-              <div className="text-sm font-semibold">What to do:</div>
-              {[
-                `Pay GHS ${regFee.toLocaleString()} registration fee to management (cash, bank or MoMo)`,
-                `Use your Student ID as reference: ${student.id}`,
-                "Management will verify your payment and activate your account",
-                "Come back here and sign in once activated",
-              ].map((step, i) => (
-                <div key={i} className="flex items-start gap-3 rounded-xl bg-muted/30 p-3">
-                  <div className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary text-[10px] font-bold text-white mt-0.5">{i + 1}</div>
-                  <span className="text-xs text-foreground leading-relaxed">{step}</span>
-                </div>
-              ))}
+            {/* Simple next step */}
+            <div className="rounded-xl bg-muted/30 p-4 text-xs text-foreground leading-relaxed">
+              <strong>In the meantime:</strong> Download the hostel prospectus below to know what to bring and expect when you arrive.
             </div>
 
-            {/* Payment details */}
-            {settings && (settings.bank_name || settings.momo_number) && (
-              <div className="rounded-xl border border-border p-4 space-y-2 text-xs">
-                <div className="font-semibold text-sm">Payment details</div>
-                {settings.bank_name && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Bank</span>
-                    <span className="font-medium text-right">{settings.bank_name} · {settings.account_number}</span>
-                  </div>
-                )}
-                {settings.momo_number && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">MoMo</span>
-                    <span className="font-medium">{settings.momo_number} ({settings.momo_name})</span>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Prospectus download */}
+            <a
+              href="/notice-and-details-of-reporting.docx"
+              download
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition"
+            >
+              Download Hostel Prospectus
+            </a>
 
             <button onClick={() => window.location.reload()}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition">
-              Check verification status
+              Check activation status
             </button>
           </div>
         </div>

@@ -412,8 +412,6 @@ function WhatsAppStep({ form, settings, onEnter }: {
   form: Form; settings: any; onEnter: () => void;
 }) {
   const [joined, setJoined] = useState(false);
-  const [showActivationModal, setShowActivationModal] = useState(false);
-
   const channelUrl = settings?.whatsapp_channel_url ?? "https://whatsapp.com/channel/";
 
   return (
@@ -475,38 +473,24 @@ function WhatsAppStep({ form, settings, onEnter }: {
         </div>
       </div>
 
-      {/* Registration fee notice — Hubtel payment will go here when live */}
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground">Almost there!</div>
-            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-              Click <strong>Activate System</strong> to complete your registration.
-              Management will review your details and activate your account.
-              {/* HUBTEL LIVE: replace this section with a payment prompt for the registration fee */}
-            </p>
-          </div>
+      {/* GHS 80 activation info — coming soon, not pay now */}
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-bold text-foreground">System Activation — GHS 80</span>
         </div>
-      </div>
-
-      {/* Activate account */}
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary mx-auto mb-3">
-          <CheckCircle2 className="h-6 w-6" />
-        </div>
-        <div className="text-sm font-semibold text-foreground">Your account is ready</div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Click below to activate your account. Management will verify your details and get you fully set up.
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          When the full system is live, activating your account will cost <strong>GHS 80</strong> — a one-time fee that covers your registration and includes your <strong>first week of Wi-Fi free</strong>.
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          You don't need to pay anything right now. We'll notify you via SMS on <strong>{form.phone}</strong> once everything is ready.
         </p>
       </div>
 
       <button
         onClick={() => {
           if (!joined) return;
-          setShowActivationModal(true);
+          onEnter();
         }}
         disabled={!joined}
         className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[oklch(0.68_0.17_145)] px-5 py-4 text-base font-bold text-white shadow-soft transition hover:opacity-95 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50">
@@ -515,6 +499,9 @@ function WhatsAppStep({ form, settings, onEnter }: {
       {!joined && (
         <p className="text-center text-xs text-muted-foreground">Join the WhatsApp channel above to activate.</p>
       )}
+    </div>
+  );
+}
 
       {/* Activation modal */}
       {showActivationModal && (

@@ -177,10 +177,12 @@ export const registerStudent = createServerFn({ method: "POST" })
     try {
       const welcomeMsg =
         `Welcome to SME Hostels, ${data.full_name.split(" ")[0]}! ` +
-        `Your account is created. Student ID: ${student.id}. ` +
+        `Your account has been created. ` +
+        `Student ID: ${student.id}. ` +
         `Room: ${data.room_no ?? "TBA"}. ` +
-        `Pay your registration fee to management to activate your account. ` +
-        `– SME Hostels`;
+        `Electricity Meter: ${data.meter_no ?? "TBA"}. ` +
+        `We'll notify you via SMS when the system is fully ready for you to activate. ` +
+        `Check back: https://sme-hostel.site`;
       await sendSms({ to: data.phone, message: welcomeMsg });
     } catch (smsErr) {
       // Log but don't fail — account is already created
