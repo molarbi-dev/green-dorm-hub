@@ -34,6 +34,7 @@ import {
   useWifiPackages, useCreateWifiPackage, useUpdateWifiPackage, useDeleteWifiPackage,
   useWifiSubscriptions, useWifiPayments, useWifiAccounts, useSetWifiAccountActive,
   useTransportAgencies, useCreateTransportAgency, useUpdateTransportAgency, useDeleteTransportAgency,
+  useUpdateSettings,
 } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
@@ -2391,6 +2392,7 @@ const SMS_PACKAGES = [
 
 function SmsBanner() {
   const { data: settings } = useSettings();
+  const updateSettingsMut = useUpdateSettings();
   const [showModal, setShowModal] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
@@ -2411,11 +2413,28 @@ function SmsBanner() {
     const pkg = SMS_PACKAGES.find((p) => p.name === selected);
     if (!pkg) return;
     setPaying(true);
-    // Hubtel checkout — replace HUBTEL_CLIENT_ID and number with real values when live
-    // For now just shows an alert
-    alert(`Redirecting to Hubtel to pay GHS ${pkg.price} for ${pkg.name} plan...`);
-    setPaying(false);
-    setShowModal(false);
+
+    try {
+      // Calculate end of current month
+      const now = new Date();
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const expiryDate = endOfMonth.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      await updateSettingsMut.mutateAsync({
+        sms_package_name: pkg.name,
+        sms_package_expires_at: expiryDate,
+      });
+
+      // TODO: trigger Hubtel checkout here when live
+      // For now just confirm and close
+      toast.success(`${pkg.name} plan activated — expires ${endOfMonth.toLocaleDateString("en-GH", { day: "numeric", month: "long", year: "numeric" })}`);
+      setShowModal(false);
+      setSelected(null);
+    } catch (err) {
+      toast.error("Failed to activate package. Please try again.");
+    } finally {
+      setPaying(false);
+    }
   }
 
   return (

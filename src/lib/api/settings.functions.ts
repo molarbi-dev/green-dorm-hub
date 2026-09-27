@@ -20,6 +20,8 @@ const SettingsPatchSchema = z.object({
   brand_primary: z.string().optional(),
   brand_soft: z.string().optional(),
   brand_mint: z.string().optional(),
+  sms_package_name: z.string().optional(),
+  sms_package_expires_at: z.string().optional(),
 });
 
 export const getSettings = createServerFn({ method: "GET" }).handler(async () => {
