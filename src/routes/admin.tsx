@@ -123,6 +123,8 @@ function Admin() {
 
       <main className="flex-1 min-w-0">
         <div className="mx-auto max-w-7xl px-4 py-6 pb-28 lg:px-8 lg:pb-10">
+          {/* SMS Package Banner */}
+          <SmsBanner />
           <div key={page} className="animate-fade-in">
             {page === "dashboard" && <Dashboard onNav={setPage} onSwitch={switchUser} />}
             {page === "students" && <StudentsPage />}
@@ -2358,6 +2360,160 @@ function WifiAccountsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/* =========================  SMS PACKAGE BANNER  ========================= */
+
+const SMS_PACKAGES = [
+  {
+    name: "Starter",
+    price: 100,
+    description: "Automatically notifies students the moment they sign up, so your front desk never has to manually confirm a new registration.",
+    color: "border-primary/30 bg-primary/5",
+    badge: null,
+  },
+  {
+    name: "Standard",
+    price: 250,
+    description: "Everything in Starter, plus instant confirmations every time a student purchases a WiFi package, proactive alerts when their balance is running low, and the ability to send hostel-wide announcements to every student at once.",
+    color: "border-blue-200 bg-blue-50",
+    badge: "Popular",
+  },
+  {
+    name: "Scale",
+    price: 350,
+    description: "Everything in Standard, built for hostels with constant activity — every purchase, renewal, and update is sent instantly with no delays or batching, keeping students informed in real time no matter how often they top up.",
+    color: "border-violet-200 bg-violet-50",
+    badge: "Best Value",
+  },
+];
+
+function SmsBanner() {
+  const { data: settings } = useSettings();
+  const [showModal, setShowModal] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+
+  const packageName = (settings as any)?.sms_package_name ?? null;
+  const expiresAt = (settings as any)?.sms_package_expires_at ?? null;
+
+  // Calculate days left
+  const daysLeft = expiresAt
+    ? Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000)
+    : null;
+
+  const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
+  const isExpired = daysLeft !== null && daysLeft <= 0;
+
+  async function handlePurchase() {
+    if (!selected) return;
+    const pkg = SMS_PACKAGES.find((p) => p.name === selected);
+    if (!pkg) return;
+    setPaying(true);
+    // Hubtel checkout — replace HUBTEL_CLIENT_ID and number with real values when live
+    // For now just shows an alert
+    alert(`Redirecting to Hubtel to pay GHS ${pkg.price} for ${pkg.name} plan...`);
+    setPaying(false);
+    setShowModal(false);
+  }
+
+  return (
+    <>
+      {/* Banner */}
+      <div className={`mb-5 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${
+        isExpired ? "border-destructive/30 bg-destructive/5" :
+        isExpiringSoon ? "border-amber-300 bg-amber-50" :
+        packageName ? "border-primary/20 bg-primary/5" :
+        "border-border bg-muted/30"
+      }`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <MessageSquare className={`h-4 w-4 shrink-0 ${isExpired ? "text-destructive" : isExpiringSoon ? "text-amber-600" : "text-primary"}`} />
+          <div className="min-w-0">
+            {packageName ? (
+              <span className="text-sm font-semibold truncate">
+                SMS: <span className="text-primary">{packageName}</span>
+                {expiresAt && (
+                  <span className={`ml-2 text-xs font-normal ${isExpired ? "text-destructive" : isExpiringSoon ? "text-amber-700" : "text-muted-foreground"}`}>
+                    {isExpired ? "— Expired" : `— Expires ${new Date(expiresAt).toLocaleDateString("en-GH")}`}
+                    {isExpiringSoon && !isExpired && ` (${daysLeft}d left)`}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">No active SMS package — students won't receive automated notifications</span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+            isExpired || !packageName
+              ? "bg-primary text-white hover:opacity-90"
+              : "border border-border bg-white hover:bg-muted/40"
+          }`}
+        >
+          {packageName ? (isExpired ? "Renew" : "Upgrade / Renew") : "Get a package"}
+        </button>
+      </div>
+
+      {/* Package modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4 animate-fade-in"
+          onClick={() => setShowModal(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-glass animate-pop">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-bold">SMS Packages</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Monthly — billed per calendar month</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted/50">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              {SMS_PACKAGES.map((pkg) => (
+                <button
+                  key={pkg.name}
+                  onClick={() => setSelected(pkg.name)}
+                  className={`w-full text-left rounded-2xl border-2 p-4 transition ${
+                    selected === pkg.name
+                      ? "border-primary bg-primary/5"
+                      : `${pkg.color} hover:border-primary/50`
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm">{pkg.name}</span>
+                        {pkg.badge && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{pkg.badge}</span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{pkg.description}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-extrabold text-primary">GHS {pkg.price}</div>
+                      <div className="text-[10px] text-muted-foreground">/month</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handlePurchase}
+              disabled={!selected || paying}
+              className="w-full rounded-2xl bg-primary py-3.5 text-sm font-bold text-white disabled:opacity-50 hover:opacity-90 transition"
+            >
+              {paying ? "Processing…" : selected ? `Pay GHS ${SMS_PACKAGES.find(p => p.name === selected)?.price} — ${selected} Plan` : "Select a package"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
