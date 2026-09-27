@@ -34,7 +34,6 @@ import {
   useWifiPackages, useCreateWifiPackage, useUpdateWifiPackage, useDeleteWifiPackage,
   useWifiSubscriptions, useWifiPayments, useWifiAccounts, useSetWifiAccountActive,
   useTransportAgencies, useCreateTransportAgency, useUpdateTransportAgency, useDeleteTransportAgency,
-  useUpdateSettings,
 } from "@/lib/queries";
 
 export const Route = createFileRoute("/admin")({
