@@ -98,74 +98,7 @@ function StudentHome() {
     );
   }
 
-  // Admin verification gate — student must be marked as paid by admin
-  if (student && regPending) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-background">
-        <div className="relative overflow-hidden bg-gradient-primary pb-16 pt-8">
-          <img src={building} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10 pointer-events-none" />
-          <div className="relative mx-auto max-w-lg px-4 sm:px-6">
-            <div className="flex items-center justify-between">
-              <img src={logo} alt="SME Hostels" className="h-10 w-auto squircle bg-white p-1.5 object-contain shadow-soft" />
-              <button onClick={signOut} className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-2 text-xs font-medium text-white backdrop-blur-md hover:bg-white/25 transition">
-                <LogOut className="h-3.5 w-3.5" /> Sign out
-              </button>
-            </div>
-            <div className="mt-8 text-white">
-              <h1 className="text-2xl font-bold">Account pending verification</h1>
-              <p className="mt-1 text-sm opacity-80">Management is reviewing your registration.</p>
-            </div>
-          </div>
-        </div>
 
-        <div className="mx-auto max-w-lg px-4 sm:px-6 -mt-8 relative z-10 pb-10">
-          <div className="rounded-2xl bg-white shadow-glass p-6 space-y-5">
-            {/* Student info */}
-            <div className="flex items-center gap-4 rounded-xl bg-muted/40 p-4">
-              <div className="h-14 w-14 overflow-hidden rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                {(student as any).avatar_url
-                  ? <img src={(student as any).avatar_url} alt="" className="h-full w-full object-cover" />
-                  : <span className="text-lg font-bold text-primary">{initials(student.full_name)}</span>}
-              </div>
-              <div>
-                <div className="font-semibold">{student.full_name}</div>
-                <div className="text-xs text-muted-foreground">{student.id} · Room {student.room_no ?? "—"}</div>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
-                <span className="text-sm font-semibold text-primary">Account pending activation</span>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your registration is complete. We're setting everything up for you —
-                you'll receive an SMS on your registered number as soon as your account is ready.
-              </p>
-            </div>
-
-            {/* Simple next step */}
-            <div className="rounded-xl bg-muted/30 p-4 text-xs text-foreground leading-relaxed">
-              <strong>In the meantime:</strong> Review the hostel guidelines to know what to bring and expect when you arrive.
-            </div>
-
-            <Link
-              to="/policy"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition"
-            >
-              <BookOpen className="h-4 w-4" /> View Hostel Guidelines & Rules
-            </Link>
-
-            <button onClick={() => window.location.reload()}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition">
-              Check activation status
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">

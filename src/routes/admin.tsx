@@ -31,7 +31,7 @@ import {
   useAllPoliciesAdmin, useCreatePolicy, useUpdatePolicy, useDeletePolicy,
   useInternships, useCreateInternship, useUpdateInternship, useDeleteInternship,
   useWifiPackages, useCreateWifiPackage, useUpdateWifiPackage, useDeleteWifiPackage,
-  useWifiSubscriptions, useWifiPayments, useWifiAccounts, useSetWifiAccountActive,
+  useWifiSubscriptions, useWifiPayments, useWifiAccounts, useSetWifiAccountActive, useStudentWifiInfo,
   useTransportAgencies, useCreateTransportAgency, useUpdateTransportAgency, useDeleteTransportAgency,
 } from "@/lib/queries";
 
@@ -174,13 +174,16 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
 
   // Recent activity from real data
   const recentActivity = useMemo(() => {
-    const items: { icon: typeof Wallet; text: string; time: string; color: string }[] = [];
-    const recentPayments = [...allPayments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()).slice(0, 4);
-    recentPayments.forEach((p) => {
-      items.push({ icon: Wallet, text: `Payment recorded · ${fmtGHS(p.amount)}`, time: fmtTime(new Date(p.payment_date).getTime()), color: "text-sky-600 bg-sky-100" });
+    const items: { icon: typeof Users; text: string; time: string; color: string }[] = [];
+    const recentStudents = [...students]
+      .filter((s) => s.last_check_in)
+      .sort((a, b) => new Date(b.last_check_in!).getTime() - new Date(a.last_check_in!).getTime())
+      .slice(0, 4);
+    recentStudents.forEach((s) => {
+      items.push({ icon: Users, text: `${s.full_name} checked in (Room ${s.room_no ?? "—"})`, time: fmtTime(new Date(s.last_check_in!).getTime()), color: "text-emerald-600 bg-emerald-100" });
     });
     return items;
-  }, [allPayments]);
+  }, [students]);
 
   return (
     <div className="space-y-6">
@@ -386,6 +389,7 @@ function StudentDetailDrawer({
   onDelete: () => void;
 }) {
   const { data: settings } = useSettings();
+  const { data: wifiInfo } = useStudentWifiInfo(student.id);
 
   const rows: { label: string; value: React.ReactNode }[] = [
     { label: "Student ID",       value: student.id },
@@ -450,7 +454,39 @@ function StudentDetailDrawer({
             ))}
           </div>
 
-
+          {/* Wi-Fi Account & Subscription */}
+          <div className="squircle bg-muted/30 p-4 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="flex items-center gap-1.5"><Wifi className="h-3.5 w-3.5 text-primary" /> Wi-Fi Status</span>
+              {wifiInfo?.account && (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${wifiInfo.account.is_active ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                  {wifiInfo.account.is_active ? "Active" : "Suspended"}
+                </span>
+              )}
+            </div>
+            {wifiInfo?.account ? (
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Wi-Fi Username</span>
+                  <span className="font-mono font-semibold">{wifiInfo.account.username}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-border/50">
+                  <span className="text-muted-foreground">Devices Allowed</span>
+                  <span className="font-semibold">{wifiInfo.account.max_devices ?? 1}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Current Plan</span>
+                  <span className="font-semibold text-primary">
+                    {wifiInfo.subscription
+                      ? `${(wifiInfo.subscription.wifi_packages as any)?.name ?? "Active"} (expires ${fmtDate(new Date(wifiInfo.subscription.expires_at).getTime())})`
+                      : "No active plan"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground py-1">No Wi-Fi account created yet.</div>
+            )}
+          </div>
         </div>
 
         {/* Footer actions */}
