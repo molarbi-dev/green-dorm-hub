@@ -21,7 +21,7 @@ import {
   useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent,
   useRooms, useCreateRoom, useUpdateRoom, useDeleteRoom,
   useMeters, useCreateMeter, useUpdateMeter, useDeleteMeter,
-  usePayments, useRecordPayment,
+  usePayments,
   useSmsMessages, useSendSms, useResolveRecipients,
   useSettings, useUpdateSettings,
   useElectricityLogs,
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/admin")({
 
 type Nav =
   | "dashboard" | "students" | "rooms" | "meters"
-  | "regfees" | "hostelfees" | "checkins"
+  | "checkins"
   | "sms" | "reports" | "settings" | "receipts" | "policies" | "internships"
   | "wifi-packages" | "wifi-subscriptions" | "wifi-payments" | "wifi-accounts"
   | "transportation";
@@ -53,8 +53,6 @@ const NAV: { key: Nav; label: string; icon: typeof LayoutDashboard; group?: stri
   { key: "students", label: "Students", icon: Users },
   { key: "rooms", label: "Rooms", icon: DoorOpen },
   { key: "meters", label: "Meters", icon: Zap },
-  { key: "regfees", label: "Registration Fees", icon: Wallet },
-  { key: "hostelfees", label: "Hostel Fees", icon: Building2 },
   { key: "checkins", label: "Check-In Records", icon: ClipboardList },
   { key: "sms", label: "SMS Center", icon: MessageSquare },
   { key: "reports", label: "Reports", icon: BarChart3 },
@@ -130,8 +128,6 @@ function Admin() {
             {page === "students" && <StudentsPage />}
             {page === "rooms" && <RoomsPage />}
             {page === "meters" && <MetersPage />}
-            {page === "regfees" && <FeesPage type="registration" />}
-            {page === "hostelfees" && <FeesPage type="hostel" />}
             {page === "checkins" && <CheckInsPage />}
             {page === "sms" && <SmsPage />}
             {page === "reports" && <ReportsPage />}
@@ -165,21 +161,7 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
   const { data: allPayments = [] } = usePayments();
 
   const checkedIn = students.filter((s) => s.check_status === "in").length;
-  const regPaid = students.filter((s) => s.reg_status === "paid").length;
-  const hostelPaid = students.filter((s) => s.hostel_paid >= (settings?.hostel_fee ?? 0)).length;
   const smsThisMonth = smsMessages.filter((m) => new Date(m.sent_at).getMonth() === new Date().getMonth()).length;
-
-  // Real chart data from payments
-  const feeData = useMemo(() => {
-    const regCollected = students.reduce((a, s) => a + s.reg_paid, 0);
-    const hostelCollected = students.reduce((a, s) => a + s.hostel_paid, 0);
-    const regOutstanding = students.reduce((a, s) => a + Math.max(0, (settings?.registration_fee ?? 200) - s.reg_paid), 0);
-    const hostelOutstanding = students.reduce((a, s) => a + Math.max(0, (settings?.hostel_fee ?? 4500) - s.hostel_paid), 0);
-    return [
-      { name: "Registration", collected: regCollected, outstanding: regOutstanding },
-      { name: "Hostel", collected: hostelCollected, outstanding: hostelOutstanding },
-    ];
-  }, [students, settings]);
 
   // Occupancy by month from check-in timestamps
   const occupancyData = useMemo(() => {
@@ -218,8 +200,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
         <Kpi icon={Users} label="Total Students" value={students.length} onClick={() => onNav("students")} />
         <Kpi icon={CheckCircle2} label="Checked In" value={checkedIn} color="primary" onClick={() => onNav("checkins")} />
         <Kpi icon={XCircle} label="Checked Out" value={students.length - checkedIn} color="muted" onClick={() => onNav("checkins")} />
-        <Kpi icon={Wallet} label="Reg. Fees Paid" value={regPaid} color="blue" onClick={() => onNav("regfees")} />
-        <Kpi icon={Building2} label="Hostel Fees Paid" value={hostelPaid} color="primary" onClick={() => onNav("hostelfees")} />
         <Kpi icon={DoorOpen} label="Total Rooms" value={rooms.length} onClick={() => onNav("rooms")} />
         <Kpi icon={Zap} label="Meter Groups" value={meters.length} color="violet" onClick={() => onNav("meters")} />
         <Kpi icon={MessageSquare} label="SMS This Month" value={smsThisMonth} color="violet" onClick={() => onNav("sms")} />
@@ -233,16 +213,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
               <XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip />
               <Area type="monotone" dataKey="students" stroke={COLORS.primary} fill="url(#occ)" strokeWidth={2} />
             </AreaChart>
-          </ResponsiveContainer>
-        </Panel>
-        <Panel title="Fee Collection">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={feeData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eef2ee" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="collected" fill={COLORS.primary} radius={[6,6,0,0]} />
-              <Bar dataKey="outstanding" fill={COLORS.amber} radius={[6,6,0,0]} />
-            </BarChart>
           </ResponsiveContainer>
         </Panel>
       </div>
@@ -261,7 +231,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
         <Panel title="Quick Actions">
           <div className="space-y-2">
             <QuickAction icon={Plus} label="Add Student" onClick={() => onNav("students")} />
-            <QuickAction icon={Wallet} label="Record Payment" onClick={() => onNav("hostelfees")} />
             <QuickAction icon={MessageSquare} label="Send SMS" onClick={() => onNav("sms")} />
             <QuickAction icon={BarChart3} label="View Reports" onClick={() => onNav("reports")} />
           </div>
@@ -430,11 +399,6 @@ function StudentDetailDrawer({
   const { data: payments = [] } = usePayments(student.id);
   const { data: settings } = useSettings();
 
-  const regFee = settings?.registration_fee ?? 0;
-  const hostelFee = settings?.hostel_fee ?? 0;
-  const regBalance = Math.max(0, regFee - student.reg_paid);
-  const hostelBalance = Math.max(0, hostelFee - student.hostel_paid);
-
   const rows: { label: string; value: React.ReactNode }[] = [
     { label: "Student ID",       value: student.id },
     { label: "Full Name",        value: student.full_name },
@@ -448,11 +412,6 @@ function StudentDetailDrawer({
     { label: "WhatsApp",         value: student.whatsapp || "—" },
     { label: "Guardian",         value: student.guardian_name || "—" },
     { label: "Guardian Phone",   value: student.guardian_phone || "—" },
-    { label: "Reg. Status",      value: <BadgeReg status={student.reg_status} /> },
-    { label: "Reg. Paid",        value: fmtGHS(student.reg_paid) },
-    { label: "Reg. Balance",     value: regBalance > 0 ? <span className="text-destructive font-medium">{fmtGHS(regBalance)}</span> : <span className="text-primary font-medium">Settled</span> },
-    { label: "Hostel Paid",      value: fmtGHS(student.hostel_paid) },
-    { label: "Hostel Balance",   value: hostelBalance > 0 ? <span className="text-destructive font-medium">{fmtGHS(hostelBalance)}</span> : <span className="text-primary font-medium">Settled</span> },
     { label: "Check Status",     value: <BadgeChk status={student.check_status} /> },
     { label: "Last Check-In",    value: student.last_check_in ? fmtTime(new Date(student.last_check_in).getTime()) : "—" },
     { label: "Last Check-Out",   value: student.last_check_out ? fmtTime(new Date(student.last_check_out).getTime()) : "—" },
@@ -496,7 +455,7 @@ function StudentDetailDrawer({
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
           {/* Info table */}
           <div className="squircle bg-muted/30 overflow-hidden">
-            {rows.map(({ label, value }, i) => (
+            {rows.filter(({ value }) => value !== "—").map(({ label, value }, i) => (
               <div key={label} className={`flex items-center justify-between gap-3 px-4 py-2.5 text-sm ${i % 2 === 0 ? "bg-white/60" : ""}`}>
                 <span className="text-xs text-muted-foreground shrink-0 w-32">{label}</span>
                 <span className="text-right font-medium text-foreground break-all">{value}</span>
@@ -763,167 +722,6 @@ function MeterModal({ initial, rooms, onClose, onSave }: { initial?: MeterRow & 
       <div className="mt-3"><div className="mb-1.5 text-xs font-medium">Notice (optional)</div>
         <textarea value={f.notice} onChange={(e) => setF({ ...f, notice: e.target.value })} rows={2}
           className="w-full rounded-xl border border-border bg-white p-2.5 text-sm" placeholder="e.g. Conserve electricity" />
-      </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
-        <button onClick={() => onSave(f)} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Save</button>
-      </div>
-    </Modal>
-  );
-}
-
-/* =========================  FEES  ========================= */
-
-function FeesPage({ type }: { type: "registration" | "hostel" }) {
-  const { data: students = [] } = useStudents();
-  const { data: settings } = useSettings();
-  const { data: allPayments = [] } = usePayments();
-  const recordMut = useRecordPayment();
-  const updateSettingsMut = useUpdateSettings();
-  const [tab, setTab] = useState<"overview"|"paid"|"unpaid">("overview");
-  const [pay, setPay] = useState<StudentRow | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-
-  if (!settings) return null;
-  const totalFee = type === "registration" ? settings.registration_fee : settings.hostel_fee;
-  const payments = allPayments.filter((p) => p.type === type).sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
-  const isPaid = (s: StudentRow) => (type === "registration" ? s.reg_paid : s.hostel_paid) >= totalFee;
-  const list = tab === "paid" ? students.filter(isPaid) : tab === "unpaid" ? students.filter((s) => !isPaid(s)) : students;
-  const collected = students.reduce((sum, s) => sum + (type === "registration" ? s.reg_paid : s.hostel_paid), 0);
-  const outstanding = students.reduce((sum, s) => sum + Math.max(0, totalFee - (type === "registration" ? s.reg_paid : s.hostel_paid)), 0);
-
-  return (
-    <div className="space-y-4">
-      <StickyHeader title={type === "registration" ? "Registration Fees" : "Hostel Fees"} subtitle={`${fmtGHS(totalFee)} per student`}
-        actions={type === "hostel" ? <button onClick={() => setDetailsOpen(true)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium"><Edit3 className="h-3.5 w-3.5" /> Payment Details</button> : undefined} />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Total Students" value={students.length} />
-        <MiniStat label="Paid" value={students.filter(isPaid).length} accent="primary" />
-        <MiniStat label="Unpaid/Overdue" value={students.length - students.filter(isPaid).length} accent="amber" />
-        <MiniStat label="Total Collected" value={fmtGHS(collected)} />
-      </div>
-      <div className="squircle bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-        <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4" /><strong>Outstanding:</strong> {fmtGHS(outstanding)}</div>
-      </div>
-      {type === "hostel" && (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="squircle bg-white p-4 shadow-soft">
-            <div className="text-xs uppercase text-muted-foreground">Bank Transfer</div>
-            <div className="mt-1 text-sm"><strong>{settings.bank_name}</strong></div>
-            <div className="text-sm">{settings.account_name} · {settings.account_number}</div>
-            <div className="text-xs text-muted-foreground">{settings.branch}</div>
-          </div>
-          <div className="squircle bg-white p-4 shadow-soft">
-            <div className="text-xs uppercase text-muted-foreground">Mobile Money</div>
-            <div className="mt-1 text-sm"><strong>{settings.momo_number}</strong></div>
-            <div className="text-sm">{settings.momo_name}</div>
-          </div>
-        </div>
-      )}
-      <div className="inline-flex rounded-full bg-muted p-1">
-        {(["overview","paid","unpaid"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize transition ${tab === t ? "bg-white shadow-soft" : "text-muted-foreground"}`}>{t}</button>
-        ))}
-      </div>
-      <div className="space-y-2">
-        {list.map((s) => {
-          const paid = type === "registration" ? s.reg_paid : s.hostel_paid;
-          const pct = Math.min(100, (paid / totalFee) * 100);
-          const balance = Math.max(0, totalFee - paid);
-          return (
-            <div key={s.id} className="squircle bg-white p-4 shadow-soft">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-primary text-xs font-bold text-white">{initials(s.full_name)}</div>
-                <div className="flex-1 min-w-[140px]">
-                  <div className="text-sm font-bold">{s.full_name}</div>
-                  <div className="text-xs text-muted-foreground">{s.id} · {s.room_no ?? "—"}</div>
-                </div>
-                <div className="hidden sm:block w-40">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${pct}%` }} /></div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{fmtGHS(paid)} / {fmtGHS(totalFee)}</div>
-                </div>
-                <div className="text-right">
-                  {balance === 0 ? <div className="text-sm font-bold text-primary">Settled</div> : (
-                    <>
-                      <div className="text-sm font-bold">{fmtGHS(balance)} due</div>
-                      <button onClick={() => setPay(s)} className="mt-1 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">Record Payment</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <SectionPanel title="Recent Payments">
-        <div className="divide-y divide-border">
-          {payments.slice(0, 8).map((p) => {
-            const st = students.find((s) => s.id === p.student_id);
-            return (
-              <div key={p.id} className="flex items-center justify-between py-2">
-                <div>
-                  <div className="text-sm font-medium">{st?.full_name} · {p.id}</div>
-                  <div className="text-xs text-muted-foreground">{fmtDate(new Date(p.payment_date).getTime())} · {p.method}</div>
-                </div>
-                <div className="text-sm font-semibold">{fmtGHS(p.amount)}</div>
-              </div>
-            );
-          })}
-        </div>
-      </SectionPanel>
-      {pay && (
-        <PaymentModal student={pay} type={type} totalFee={totalFee} onClose={() => setPay(null)}
-          onSave={(amount, method) => {
-            recordMut.mutate({
-              id: (type === "registration" ? "R-" : "H-") + Date.now(),
-              student_id: pay.id, type, amount, method,
-              payment_date: new Date().toISOString(),
-            });
-            setPay(null);
-          }} />
-      )}
-      {detailsOpen && type === "hostel" && (
-        <PaymentDetailsModal settings={settings} onClose={() => setDetailsOpen(false)}
-          onSave={(patch) => { updateSettingsMut.mutate(patch); setDetailsOpen(false); }} />
-      )}
-    </div>
-  );
-}
-
-function PaymentModal({ student, type, totalFee, onClose, onSave }: { student: StudentRow; type: "registration"|"hostel"; totalFee: number; onClose: () => void; onSave: (amount: number, method: "bank"|"momo"|"cash") => void }) {
-  const balance = totalFee - (type === "registration" ? student.reg_paid : student.hostel_paid);
-  const [amount, setAmount] = useState(String(Math.max(0, balance)));
-  const [method, setMethod] = useState<"bank"|"momo"|"cash">("momo");
-  return (
-    <Modal title="Record Payment" onClose={onClose}>
-      <div className="rounded-2xl bg-muted/40 p-3">
-        <div className="text-sm font-bold">{student.full_name}</div>
-        <div className="text-xs text-muted-foreground">{student.id} · Outstanding: {fmtGHS(Math.max(0, balance))}</div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <FormField label={`Amount (max ${fmtGHS(balance)})`} type="number" value={amount} onChange={setAmount} />
-        <FormSelect label="Method" value={method} onChange={(v) => setMethod(v as any)} options={["momo","bank","cash"]} />
-      </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
-        <button onClick={() => onSave(Number(amount), method)} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Confirm</button>
-      </div>
-    </Modal>
-  );
-}
-
-function PaymentDetailsModal({ settings, onClose, onSave }: { settings: any; onClose: () => void; onSave: (patch: any) => void }) {
-  const [f, setF] = useState({ bank_name: settings.bank_name, account_name: settings.account_name, account_number: settings.account_number, branch: settings.branch, momo_number: settings.momo_number, momo_name: settings.momo_name, hostel_fee: settings.hostel_fee });
-  return (
-    <Modal title="Hostel Fee Payment Details" onClose={onClose}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormField label="Bank Name" value={f.bank_name} onChange={(v) => setF({ ...f, bank_name: v })} />
-        <FormField label="Account Name" value={f.account_name} onChange={(v) => setF({ ...f, account_name: v })} />
-        <FormField label="Account Number" value={f.account_number} onChange={(v) => setF({ ...f, account_number: v })} />
-        <FormField label="Branch" value={f.branch} onChange={(v) => setF({ ...f, branch: v })} />
-        <FormField label="MoMo Number" value={f.momo_number} onChange={(v) => setF({ ...f, momo_number: v })} />
-        <FormField label="MoMo Name" value={f.momo_name} onChange={(v) => setF({ ...f, momo_name: v })} />
-        <FormField label="Annual Hostel Fee" type="number" value={String(f.hostel_fee)} onChange={(v) => setF({ ...f, hostel_fee: Number(v) })} />
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>

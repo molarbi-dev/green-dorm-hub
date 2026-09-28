@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
-import { useRegisterStudent, useRooms, useMeters, useSettings, useHostelFeeForRoom, usePolicies } from "@/lib/queries";
+import { useRegisterStudent, useRooms, useMeters, useSettings, usePolicies } from "@/lib/queries";
 import { uploadToImgur } from "@/lib/imgur";
 import { ALL_COURSES, LEVELS } from "@/lib/constants";
 
@@ -50,12 +50,7 @@ function Onboarding() {
   const { data: meters = [] } = useMeters();
   const { data: settings } = useSettings();
   const { data: policies = [] } = usePolicies();
-  const { data: roomFeeData } = useHostelFeeForRoom(form.roomNo);
   const createStudent = useRegisterStudent();
-  // hostelFee shown on step 3 notice
-
-  // Registration fee is flat; hostel fee depends on room capacity
-  const hostelFee = roomFeeData?.hostelFee ?? settings?.hostel_fee ?? 0;
 
   const upd = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));

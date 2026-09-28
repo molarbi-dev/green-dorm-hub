@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, CreditCard, BookOpen,
+  LayoutDashboard, BookOpen,
   Zap, Phone, LogOut, ChevronRight, CheckCircle2,
   AlertTriangle, DoorOpen, User, Briefcase, MessageCircle, X, Wifi, Bus,
 } from "lucide-react";
@@ -47,9 +47,7 @@ function StudentHome() {
     navigate({ to: "/" });
   }
 
-  const regStatus = student?.reg_status ?? "unpaid";
-  const regFee = settings?.registration_fee ?? 100;
-  const regPending = regStatus !== "paid";
+  const { data: wifiInfo } = useStudentWifiInfo(currentId);
 
   // All icons use primary colour — amber is reserved for warning badges only
   const sections = [
@@ -60,17 +58,6 @@ function StudentHome() {
       to: "/student/dashboard" as const,
       search: {},
       badge: undefined as string | undefined,
-      chip: undefined as string | undefined,
-    },
-    {
-      icon: CreditCard,
-      label: "Fees & Payments",
-      description: regPending
-        ? `GHS ${regFee.toLocaleString()} registration fee outstanding`
-        : "Your registration fee has been settled",
-      badge: regPending ? "Pending" : undefined,
-      to: "/student/fees" as const,
-      search: {},
       chip: undefined as string | undefined,
     },
     {
@@ -234,37 +221,6 @@ function StudentHome() {
         </div>
       </div>
 
-      {/* ── Status card — sits below hero with mt-negative to overlap slightly ── */}
-      {student && (
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 -mt-10 relative z-10">
-          <div className={`rounded-2xl p-4 flex items-start gap-3 shadow-soft ${
-            regPending
-              ? "bg-amber-50 border border-amber-200"
-              : "bg-white border border-primary/20"
-          }`}>
-            {regPending
-              ? <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
-              : <CheckCircle2 className="h-5 w-5 shrink-0 text-primary mt-0.5" />}
-            <div className="flex-1 min-w-0">
-              <div className={`text-sm font-semibold ${regPending ? "text-amber-800" : "text-primary"}`}>
-                {regPending ? "Registration fee outstanding" : "Account fully active"}
-              </div>
-              {regPending && (
-                <p className="mt-0.5 text-xs text-amber-700 leading-relaxed">
-                  Pay GHS {regFee.toLocaleString()} to management via bank transfer or MoMo.
-                  Use your Student ID as the payment reference.
-                </p>
-              )}
-            </div>
-            {regPending && (
-              <Link to="/student/fees" search={{} as any}
-                className="shrink-0 rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition">
-                View details
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── Announcement banner ── */}
       {settings?.announcement?.trim() && !announcementDismissed && (
