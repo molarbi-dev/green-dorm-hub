@@ -360,7 +360,7 @@ function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP 3: WhatsApp + registration fee notice ── */}
+          {/* ── STEP 3: WhatsApp + system activation notice ── */}
           {step === 3 && (
             <WhatsAppStep
               form={form}
@@ -439,7 +439,7 @@ function WhatsAppStep({ form, settings, onEnter }: {
       {/* WhatsApp channel card */}
       <div className="rounded-2xl border-2 border-[#25D366]/40 bg-[#25D366]/5 p-5">
         <p className="text-sm text-muted-foreground mb-4">
-          All official hostel announcements, fee reminders, and urgent notices are sent through our WhatsApp channel.
+          All official hostel announcements, important updates, and urgent notices are sent through our WhatsApp channel.
           You <strong>must</strong> join to stay informed.
         </p>
         <a
@@ -469,7 +469,7 @@ function WhatsAppStep({ form, settings, onEnter }: {
           <span className="text-sm font-bold text-foreground">System Activation — GHS 80</span>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          When the full system is live, activating your account will cost <strong>GHS 80</strong> — a one-time fee that covers your registration and includes your <strong>first week of Wi-Fi free</strong>.
+          When the full system is live, activating your account will cost <strong>GHS 80</strong> — which includes your <strong>first week of Wi-Fi free</strong> and your <strong>first-time prepaid electricity top-up free</strong>.
         </p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           You don't need to pay anything right now. We'll notify you via SMS on <strong>{form.phone}</strong> once everything is ready.
