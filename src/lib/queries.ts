@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { getStudents, getStudent, createStudent, updateStudent, deleteStudent, checkInStudent, checkOutStudent, acceptPolicy } from "./api/students.functions";
 import { getRooms, createRoom, updateRoom, deleteRoom, getMeters, createMeter, updateMeter, deleteMeter } from "./api/rooms.functions";
-import { getPayments, recordPayment } from "./api/payments.functions";
+
 import { getSmsMessages, sendSmsToStudents, resolveSmsRecipients, testSms } from "./api/sms.functions";
 import { getSettings, updateSettings } from "./api/settings.functions";
 
@@ -18,7 +18,6 @@ export const QK = {
   student: (id: string) => ["students", id] as const,
   rooms: ["rooms"] as const,
   meters: ["meters"] as const,
-  payments: (studentId?: string) => ["payments", studentId ?? "all"] as const,
   sms: ["sms"] as const,
   settings: ["settings"] as const,
 };
@@ -180,30 +179,6 @@ export function useDeleteMeter() {
   });
 }
 
-// ── Payments ──────────────────────────────────────────────────────────────────
-
-export function usePayments(studentId?: string) {
-  return useQuery({
-    queryKey: QK.payments(studentId),
-    queryFn: () => getPayments({ data: { studentId } }),
-  });
-}
-
-export function useRecordPayment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Parameters<typeof recordPayment>[0]["data"]) =>
-      recordPayment({ data }),
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: QK.payments() });
-      qc.invalidateQueries({ queryKey: QK.payments(vars.student_id) });
-      qc.invalidateQueries({ queryKey: QK.students });
-      toast.success("Payment recorded");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
 // ── SMS ───────────────────────────────────────────────────────────────────────
 
 export function useSmsMessages() {
@@ -338,14 +313,6 @@ export function useUpsertRoomPricing() {
       toast.success("Room pricing updated");
     },
     onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useHostelFeeForRoom(roomNo: string) {
-  return useQuery({
-    queryKey: QK_PRICING.forRoom(roomNo),
-    queryFn: () => getHostelFeeForRoom({ data: { roomNo } }),
-    enabled: !!roomNo,
   });
 }
 

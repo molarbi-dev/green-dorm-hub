@@ -157,7 +157,6 @@ function Dashboard({ onNav, onSwitch }: { onNav: (p: Nav) => void; onSwitch: () 
   const { data: settings } = useSettings();
   const { data: rooms = [] } = useRooms();
   const { data: meters = [] } = useMeters();
-  const { data: allPayments = [] } = usePayments();
 
   const checkedIn = students.filter((s) => s.check_status === "in").length;
   const smsThisMonth = smsMessages.filter((m) => new Date(m.sent_at).getMonth() === new Date().getMonth()).length;
@@ -249,7 +248,6 @@ function StudentsPage() {
   const updateMut = useUpdateStudent();
   const deleteMut = useDeleteStudent();
   const [q, setQ] = useState("");
-  const [regFilter, setRegFilter] = useState<"all"|"paid"|"partial"|"unpaid">("all");
   const [chkFilter, setChkFilter] = useState<"all"|"in"|"out">("all");
   const [edit, setEdit] = useState<StudentRow | null>(null);
   const [adding, setAdding] = useState(false);
@@ -259,17 +257,16 @@ function StudentsPage() {
 
   const filtered = students.filter((s) => {
     const match = (s.full_name + s.id + s.course + (s.room_no ?? "")).toLowerCase().includes(q.toLowerCase());
-    return match && (regFilter === "all" || s.reg_status === regFilter) && (chkFilter === "all" || s.check_status === chkFilter);
+    return match && (chkFilter === "all" || s.check_status === chkFilter);
   });
 
   return (
     <div className="space-y-4">
       <StickyHeader title="Students" subtitle={`${students.length} total`}
         actions={<button onClick={() => setAdding(true)} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"><Plus className="h-4 w-4" /> Add Student</button>} />
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <MiniStat label="Total" value={students.length} />
         <MiniStat label="Checked In" value={students.filter((s) => s.check_status === "in").length} accent="primary" />
-        <MiniStat label="Unpaid Reg." value={students.filter((s) => s.reg_status !== "paid").length} accent="amber" />
       </div>
       <div className="squircle bg-white p-3 shadow-soft flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -277,9 +274,6 @@ function StudentsPage() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, ID, course, room"
             className="w-full rounded-xl bg-muted/40 py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
-        <select value={regFilter} onChange={(e) => setRegFilter(e.target.value as any)} className="rounded-xl bg-muted/40 px-3 py-2.5 text-sm">
-          <option value="all">All Reg.</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="unpaid">Unpaid</option>
-        </select>
         <select value={chkFilter} onChange={(e) => setChkFilter(e.target.value as any)} className="rounded-xl bg-muted/40 px-3 py-2.5 text-sm">
           <option value="all">All Status</option><option value="in">Checked In</option><option value="out">Checked Out</option>
         </select>
@@ -299,7 +293,7 @@ function StudentsPage() {
               <button onClick={() => setDetail(s)} className="flex-1 min-w-0 text-left">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-sm font-bold truncate">{s.full_name}</div>
-                  <BadgeReg status={s.reg_status} /><BadgeChk status={s.check_status} />
+                  <BadgeChk status={s.check_status} />
                 </div>
                 <div className="text-xs text-muted-foreground">{s.id} · {s.course}</div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -357,9 +351,6 @@ function StudentModal({ initial, rooms, meters, onClose, onSave }: {
     guardian_name: initial?.guardian_name ?? "",
     guardian_phone: initial?.guardian_phone ?? "",
     username: initial?.username ?? "",
-    reg_status: initial?.reg_status ?? "unpaid" as const,
-    reg_paid: initial?.reg_paid ?? 0,
-    hostel_paid: initial?.hostel_paid ?? 0,
     check_status: initial?.check_status ?? "out" as const,
     policy_accepted: initial?.policy_accepted ?? false,
   });
@@ -929,12 +920,11 @@ function ComposeModal({ students, prefillTemplate, onClose, onSend }: {
   const resolvedPhones = useMemo(() => {
     let list = students;
     if (group === "checked_in") list = students.filter((s) => s.check_status === "in");
-    else if (group === "unpaid_reg") list = students.filter((s) => s.reg_status !== "paid");
     else if (group.startsWith("meter:")) list = students.filter((s) => s.meter_no === group.replace("meter:", ""));
     return list.map((s) => s.phone).filter(Boolean);
   }, [group, students]);
 
-  const groupLabel = group === "all" ? "All Students" : group === "checked_in" ? "Checked-In Students" : group === "unpaid_reg" ? "Unpaid Reg. Students" : group;
+  const groupLabel = group === "all" ? "All Students" : group === "checked_in" ? "Checked-In Students" : group;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 animate-fade-in" onClick={onClose}>
@@ -949,7 +939,6 @@ function ComposeModal({ students, prefillTemplate, onClose, onSend }: {
             <select value={group} onChange={(e) => setGroup(e.target.value)} className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm">
               <option value="all">All Students ({students.length})</option>
               <option value="checked_in">Checked-In ({students.filter((s) => s.check_status === "in").length})</option>
-              <option value="unpaid_reg">Unpaid Registration ({students.filter((s) => s.reg_status !== "paid").length})</option>
             </select>
             <div className="mt-1 text-xs text-muted-foreground">{resolvedPhones.length} recipients selected</div>
           </div>
@@ -983,51 +972,26 @@ function ComposeModal({ students, prefillTemplate, onClose, onSend }: {
 
 function ReportsPage() {
   const { data: students = [] } = useStudents();
-  const { data: payments = [] } = usePayments();
   const { data: sms = [] } = useSmsMessages();
-  const { data: settings } = useSettings();
-  const [tab, setTab] = useState<"students"|"fees"|"sms"|"electricity">("students");
-
-  const regFee = settings?.registration_fee ?? 200;
-  const hostelFee = settings?.hostel_fee ?? 4500;
+  const [tab, setTab] = useState<"students"|"sms"|"electricity">("students");
 
   return (
     <div className="space-y-4">
       <StickyHeader title="Reports" subtitle="Live data from Supabase" />
       <div className="inline-flex rounded-full bg-muted p-1">
-        {(["students","fees","sms","electricity"] as const).map((t) => (
+        {(["students","sms","electricity"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-xs font-medium capitalize transition ${tab === t ? "bg-white shadow-soft" : "text-muted-foreground"}`}>{t}</button>
         ))}
       </div>
       {tab === "students" && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <MiniStat label="Total" value={students.length} />
             <MiniStat label="Checked In" value={students.filter((s) => s.check_status === "in").length} accent="primary" />
             <MiniStat label="Policy Accepted" value={students.filter((s) => s.policy_accepted).length} accent="primary" />
-            <MiniStat label="Unpaid Reg." value={students.filter((s) => s.reg_status !== "paid").length} accent="amber" />
           </div>
         </div>
       )}
-      {tab === "fees" && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MiniStat label="Reg. Collected" value={fmtGHS(students.reduce((a, s) => a + s.reg_paid, 0))} accent="primary" />
-            <MiniStat label="Hostel Collected" value={fmtGHS(students.reduce((a, s) => a + s.hostel_paid, 0))} accent="primary" />
-            <MiniStat label="Reg. Outstanding" value={fmtGHS(students.reduce((a, s) => a + Math.max(0, regFee - s.reg_paid), 0))} accent="amber" />
-            <MiniStat label="Hostel Outstanding" value={fmtGHS(students.reduce((a, s) => a + Math.max(0, hostelFee - s.hostel_paid), 0))} accent="amber" />
-          </div>
-          <SectionPanel title="Recent Payments">
-            <div className="divide-y divide-border">
-              {[...payments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()).slice(0, 10).map((p) => {
-                const st = students.find((s) => s.id === p.student_id);
-                return (
-                  <div key={p.id} className="flex items-center justify-between py-2 text-sm">
-                    <div><div className="font-medium">{st?.full_name} · {p.id}</div><div className="text-xs text-muted-foreground">{fmtDate(new Date(p.payment_date).getTime())} · {p.type} · {p.method}</div></div>
-                    <div className="font-semibold">{fmtGHS(p.amount)}</div>
-                  </div>
-                );
-              })}
             </div>
           </SectionPanel>
         </div>
@@ -2317,11 +2281,6 @@ function QuickAction({ icon: Icon, label, badge, onClick }: { icon: typeof Users
       <ArrowRight className="h-4 w-4 text-muted-foreground" />
     </button>
   );
-}
-
-function BadgeReg({ status }: { status: string }) {
-  const map: Record<string, string> = { paid: "bg-primary/10 text-primary", partial: "bg-amber-100 text-amber-700", unpaid: "bg-destructive/10 text-destructive" };
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${map[status] ?? "bg-muted text-muted-foreground"}`}>{status}</span>;
 }
 
 function BadgeChk({ status }: { status: string }) {
