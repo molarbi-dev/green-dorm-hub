@@ -47,7 +47,6 @@ function StudentHome() {
     navigate({ to: "/" });
   }
 
-  const { data: wifiInfo } = useStudentWifiInfo(currentId);
 
   // All icons use primary colour — amber is reserved for warning badges only
   const sections = [
