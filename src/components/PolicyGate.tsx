@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck, Download, ChevronDown, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, ChevronDown, CheckCircle2 } from "lucide-react";
 import { POLICY_SECTIONS } from "@/lib/policy-sections";
 
 export function PolicyGate({ studentName, onAccept }: { studentName: string; onAccept: () => void }) {
@@ -35,10 +35,6 @@ export function PolicyGate({ studentName, onAccept }: { studentName: string; onA
               <div className="text-xs opacity-90">Hi {studentName.split(" ")[0]} — please review before continuing</div>
             </div>
           </div>
-          <a href="/notice-and-details-of-reporting.docx" download
-            className="hidden sm:inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-medium hover:bg-white/30 transition">
-            <Download className="h-4 w-4" /> Download .docx
-          </a>
         </div>
       </div>
 
@@ -46,10 +42,6 @@ export function PolicyGate({ studentName, onAccept }: { studentName: string; onA
       <div className="relative flex-1 overflow-hidden">
         <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-4 py-6 sm:px-6">
           <div className="mx-auto max-w-3xl space-y-4">
-            <a href="/notice-and-details-of-reporting.docx" download
-              className="sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-              <Download className="h-4 w-4" /> Download official .docx
-            </a>
             <p className="rounded-2xl bg-primary/5 border border-primary/15 p-4 text-sm text-foreground/80">
               Welcome to SME Hostels. The following 10 sections outline the policies you must follow as a resident.
               Scroll through every section, then tick the box at the bottom and tap <strong>Accept & Continue</strong>.

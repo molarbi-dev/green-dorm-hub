@@ -309,16 +309,31 @@ function Onboarding() {
                 </div>
               </div>
 
-              <div className="max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-border bg-white/70 p-5 text-sm leading-relaxed text-foreground">
+              <div className="max-h-80 space-y-4 overflow-y-auto rounded-2xl border border-border bg-white/70 p-5 text-sm leading-relaxed text-foreground">
+                <div className="border-b border-border/60 pb-3 text-center">
+                  <div className="font-bold text-base tracking-wide text-foreground">SME HOSTELS</div>
+                  <div className="text-xs text-muted-foreground font-medium">Important Guidelines for Residents</div>
+                </div>
                 {(policies.length > 0 ? policies : GUIDELINES).map((g: any, i: number) => (
                   <div key={i} className="flex gap-3">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <div>
-                      <div className="font-medium">{g.title}</div>
-                      <p className="text-muted-foreground">{g.body}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-foreground text-sm">{g.title}</div>
+                      {g.points ? (
+                        <ul className="mt-1 list-disc pl-4 space-y-0.5 text-xs text-muted-foreground leading-relaxed">
+                          {g.points.map((pt: string, pIdx: number) => (
+                            <li key={pIdx}>{pt}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-0.5 text-xs text-muted-foreground whitespace-pre-line leading-relaxed">{g.body}</p>
+                      )}
                     </div>
                   </div>
                 ))}
+                <p className="pt-2 text-center text-xs text-muted-foreground italic border-t border-border/60">
+                  Please keep these guidelines in mind when preparing for your stay at SME Hostels.
+                </p>
               </div>
 
               <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-secondary/60 p-4">
@@ -446,27 +461,6 @@ function WhatsAppStep({ form, settings, onEnter }: {
         </span>
       </label>
 
-      {/* Hostel prospectus / requirements PDF download */}
-      <div className="rounded-2xl border border-border bg-white/60 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold">Hostel Prospectus</div>
-              <div className="text-xs text-muted-foreground">What to bring, rules, and requirements</div>
-            </div>
-          </div>
-          <a
-            href="/notice-and-details-of-reporting.docx"
-            download
-            className="shrink-0 rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold hover:bg-muted/40 transition"
-          >
-            Download
-          </a>
-        </div>
-      </div>
 
       {/* GHS 80 activation info — coming soon, not pay now */}
       <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3">
@@ -501,30 +495,66 @@ function WhatsAppStep({ form, settings, onEnter }: {
 const GUIDELINES = [
   {
     title: "1. Electricity",
-    body: "Electric hotplates are not allowed. Use gas cylinders/stoves for cooking. Approved appliances such as irons, fridges, electric kettles and other reasonable appliances may be used. Do not tamper with electricity meter boards unless approved by management.",
+    body: "• Electric hotplates are not allowed.\n• Use gas cylinders/stoves for cooking.\n• Approved appliances such as irons, fridges, electric kettles and other reasonable appliances maybe used.\n• Do not tamper with electricity meter boards unless approved by management.\n• 50cedis Should be contributed individually for prepaid each week",
+    points: [
+      "Electric hotplates are not allowed.",
+      "Use gas cylinders/stoves for cooking.",
+      "Approved appliances such as irons, fridges, electric kettles and other reasonable appliances maybe used.",
+      "Do not tamper with electricity meter boards unless approved by management.",
+      "50cedis Should be contributed individually for prepaid each week",
+    ],
   },
   {
     title: "2. Noise & Conduct",
-    body: "Keep noise low between 10:00 PM and 6:00 AM. No loud music, parties or disruptive behavior. Respect other students and hostel staff.",
+    body: "• Keep noise low between 10:00 PM and 6:00 AM.\n• No loud music, parties or disruptive behavior.\n• Respect other students and hostel staff.",
+    points: [
+      "Keep noise low between 10:00 PM and 6:00 AM.",
+      "No loud music, parties or disruptive behavior.",
+      "Respect other students and hostel staff.",
+    ],
   },
   {
     title: "3. Room Maintenance",
-    body: "Keep your room and shared spaces clean. Regularly clean fans and louver blades. Report damage, leaks, faulty bulbs or other issues to management. Do not alter or modify rooms without permission.",
+    body: "• Keep your room and shared spaces clean.\n• Regularly clean fans and louver blades.\n• Report damage, leaks, faulty bulbs or other issues to management.\n• Do not alter or modify rooms without permission.",
+    points: [
+      "Keep your room and shared spaces clean.",
+      "Regularly clean fans and louver blades.",
+      "Report damage, leaks, faulty bulbs or other issues to management.",
+      "Do not alter or modify rooms without permission.",
+    ],
   },
   {
     title: "4. Visitors",
-    body: "Visiting hours: 10:00 AM – 8:00 PM. All visitors must sign in. Overnight visitors require management approval. Students are responsible for their visitors.",
+    body: "• Visiting hours: 10:00 AM – 8:00 PM.\n• All visitors must sign in.\n• Overnight visitors require management approval.\n• Students are responsible for their visitors.",
+    points: [
+      "Visiting hours: 10:00 AM – 8:00 PM.",
+      "All visitors must sign in.",
+      "Overnight visitors require management approval.",
+      "Students are responsible for their visitors.",
+    ],
   },
   {
     title: "5. Communication",
-    body: "Important announcements will be shared through SMS and the hostel WhatsApp group. Keep your phone and WhatsApp number updated.",
+    body: "• Important announcements will be shared through SMS and the hostel WhatsApp group.\n• Keep your phone and WhatsApp number updated.",
+    points: [
+      "Important announcements will be shared through SMS and the hostel WhatsApp group.",
+      "Keep your phone and WhatsApp number updated.",
+    ],
   },
   {
     title: "6. What to Bring",
-    body: "Bring your own curtains, sleeping items, mops, brushes, brooms and other basic cleaning items. Cleaning items will not be provided by management.",
+    body: "• Bring your own curtains, sleeping items, mops, brushes, brooms and other basic cleaning items.\n• Cleaning items will not be provided by management.",
+    points: [
+      "Bring your own curtains, sleeping items, mops, brushes, brooms and other basic cleaning items.",
+      "Cleaning items will not be provided by management.",
+    ],
   },
   {
     title: "7. Compliance",
-    body: "All students are expected to follow hostel rules and regulations (Policies). Failure to follow the rules may result in warnings, fines, suspension or eviction.",
+    body: "• All students are expected to follow hostel rules and regulations(Policies).\n• Failure to follow the rules may result in warnings, fines, suspension or eviction.",
+    points: [
+      "All students are expected to follow hostel rules and regulations(Policies).",
+      "Failure to follow the rules may result in warnings, fines, suspension or eviction.",
+    ],
   },
 ];

@@ -148,17 +148,15 @@ function StudentHome() {
 
             {/* Simple next step */}
             <div className="rounded-xl bg-muted/30 p-4 text-xs text-foreground leading-relaxed">
-              <strong>In the meantime:</strong> Download the hostel prospectus below to know what to bring and expect when you arrive.
+              <strong>In the meantime:</strong> Review the hostel guidelines to know what to bring and expect when you arrive.
             </div>
 
-            {/* Prospectus download */}
-            <a
-              href="/notice-and-details-of-reporting.docx"
-              download
+            <Link
+              to="/policy"
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition"
             >
-              Download Hostel Prospectus
-            </a>
+              <BookOpen className="h-4 w-4" /> View Hostel Guidelines & Rules
+            </Link>
 
             <button onClick={() => window.location.reload()}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-white py-3 text-sm font-medium hover:bg-muted/40 transition">
