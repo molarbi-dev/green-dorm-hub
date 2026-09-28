@@ -992,10 +992,6 @@ function ReportsPage() {
           </div>
         </div>
       )}
-            </div>
-          </SectionPanel>
-        </div>
-      )}
       {tab === "sms" && (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
