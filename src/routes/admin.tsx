@@ -21,7 +21,6 @@ import {
   useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent,
   useRooms, useCreateRoom, useUpdateRoom, useDeleteRoom,
   useMeters, useCreateMeter, useUpdateMeter, useDeleteMeter,
-  usePayments,
   useSmsMessages, useSendSms, useResolveRecipients,
   useSettings, useUpdateSettings,
   useElectricityLogs,
@@ -376,8 +375,7 @@ function StudentModal({ initial, rooms, meters, onClose, onSave }: {
         <FormField label="Guardian Phone" value={f.guardian_phone} onChange={(v) => setF({ ...f, guardian_phone: v })} />
         <FormSelect label="Room" value={f.room_no ?? ""} onChange={(v) => setF({ ...f, room_no: (v || null) as any })} options={["", ...rooms.map((r) => r.no)]} />
         <FormSelect label="Meter" value={f.meter_no ?? ""} onChange={(v) => setF({ ...f, meter_no: (v || null) as any })} options={["", ...meters.map((m) => m.no)]} />
-        <FormSelect label="Registration Status" value={f.reg_status} onChange={(v) => setF({ ...f, reg_status: v as any })} options={["paid","partial","unpaid"]} />
-        <FormField label="Amount Paid (Reg.)" type="number" value={String(f.reg_paid)} onChange={(v) => setF({ ...f, reg_paid: Number(v) })} />
+
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button onClick={onClose} className="rounded-full border border-border bg-white px-4 py-2 text-sm">Cancel</button>
@@ -396,7 +394,6 @@ function StudentDetailDrawer({
   onResetPw: () => void;
   onDelete: () => void;
 }) {
-  const { data: payments = [] } = usePayments(student.id);
   const { data: settings } = useSettings();
 
   const rows: { label: string; value: React.ReactNode }[] = [
@@ -440,7 +437,6 @@ function StudentDetailDrawer({
                 <div className="text-lg font-bold leading-tight">{student.full_name}</div>
                 <div className="text-xs opacity-80">{student.id}</div>
                 <div className="mt-1 flex gap-1.5 flex-wrap">
-                  <BadgeReg status={student.reg_status} />
                   <BadgeChk status={student.check_status} />
                 </div>
               </div>
@@ -463,27 +459,7 @@ function StudentDetailDrawer({
             ))}
           </div>
 
-          {/* Payment history */}
-          <div>
-            <div className="mb-2 text-sm font-bold">Payment History</div>
-            {payments.length === 0 ? (
-              <div className="rounded-2xl bg-muted/40 p-4 text-center text-xs text-muted-foreground">No payments recorded.</div>
-            ) : (
-              <div className="space-y-2">
-                {[...payments]
-                  .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
-                  .map((p) => (
-                    <div key={p.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
-                      <div>
-                        <div className="text-xs font-semibold capitalize">{p.type} fee · {p.method}</div>
-                        <div className="text-[11px] text-muted-foreground">{p.id} · {fmtDate(new Date(p.payment_date).getTime())}</div>
-                      </div>
-                      <div className="text-sm font-bold text-primary">{fmtGHS(p.amount)}</div>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
+
         </div>
 
         {/* Footer actions */}
