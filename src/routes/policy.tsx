@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, Download } from "lucide-react";
 import { usePolicies } from "@/lib/queries";
 import logo from "@/assets/logo.jpg";
 
@@ -28,9 +28,9 @@ function PolicyPage() {
       </header>
 
       <div className="bg-gradient-primary px-4 py-10 text-white sm:px-6">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 shrink-0">
               <BookOpen className="h-6 w-6" />
             </div>
             <div>
@@ -38,6 +38,15 @@ function PolicyPage() {
               <p className="mt-0.5 text-sm opacity-80">Please read all sections carefully before proceeding.</p>
             </div>
           </div>
+          <a
+            href="/sme-hostels-guidelines.pdf"
+            download="SME-Hostels-Guidelines.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2.5 text-xs font-semibold text-white transition shadow-sm"
+          >
+            <Download className="h-4 w-4" /> Download PDF
+          </a>
         </div>
       </div>
 

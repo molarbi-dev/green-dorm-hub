@@ -3,7 +3,7 @@ import { useState, useMemo, useRef } from "react";
 import {
   User, Phone, MessageCircle, BookOpen, Layers, DoorOpen, ShieldCheck,
   AtSign, Lock, ArrowRight, ArrowLeft, CheckCircle2, FileText, Sparkles,
-  Zap, Loader2, Camera, Upload, X, Eye, EyeOff,
+  Zap, Loader2, Camera, Upload, X, Eye, EyeOff, Download,
 } from "lucide-react";
 import logo from "@/assets/logo.jpg";
 import building from "@/assets/building.jpg";
@@ -299,14 +299,25 @@ function Onboarding() {
           {/* ── STEP 2: Policy ── */}
           {step === 2 && (
             <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary/10 text-primary">
-                  <FileText className="h-5 w-5" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold">Hostel guidelines & code of conduct</h2>
+                    <p className="text-sm text-muted-foreground">Read carefully — acceptance is mandatory to proceed.</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold">Hostel guidelines & code of conduct</h2>
-                  <p className="text-sm text-muted-foreground">Read carefully — acceptance is mandatory to proceed.</p>
-                </div>
+                <a
+                  href="/sme-hostels-guidelines.pdf"
+                  download="SME-Hostels-Guidelines.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition shadow-soft"
+                >
+                  <Download className="h-4 w-4" /> Download PDF
+                </a>
               </div>
 
               <div className="max-h-80 space-y-4 overflow-y-auto rounded-2xl border border-border bg-white/70 p-5 text-sm leading-relaxed text-foreground">
