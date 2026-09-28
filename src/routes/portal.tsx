@@ -12,7 +12,7 @@ import { fmtGHS, fmtTime, fmtDate, initials } from "@/lib/hostel-store";
 import { PolicyGate } from "@/components/PolicyGate";
 import {
   useStudent, useCheckIn, useCheckOut, useAcceptPolicy,
-  useUpdateStudent, usePayments, useSettings,
+  useUpdateStudent, useSettings,
   useMeters, useStudents,
   useElectricityLogs, useLogElectricityTopup,
   useStudentReceipts, useSubmitReceipt,
@@ -348,7 +348,7 @@ function ProfileTab({ studentId }: { studentId: string }) {
 function FeesTab({ studentId }: { studentId: string }) {
   const { data: s } = useStudent(studentId);
   const { data: settings } = useSettings();
-  const { data: payments = [] } = usePayments(studentId);
+  const payments: any[] = [];
 
   if (!s || !settings) return null;
 
