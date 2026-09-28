@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseAdmin } from "../supabase.server";
-import { hashPassword, verifyPassword } from "../crypto.server";
+import { hashPassword, verifyPassword, encryptValue } from "../crypto.server";
 import { getEnv } from "../env.server";
 import { sendSms } from "../mnotify.server";
 // ── Admin login ───────────────────────────────────────────────────────────────
@@ -173,6 +173,26 @@ export const registerStudent = createServerFn({ method: "POST" })
 
     if (error) throw new Error(error.message);
 
+    // Upsert wifi_accounts so the router provisioning service can authenticate this student.
+    // encrypt the plaintext password with the shared ROUTER_PASSWORD_ENCRYPTION_KEY.
+    const encKey = process.env.ROUTER_PASSWORD_ENCRYPTION_KEY;
+    if (encKey) {
+      try {
+        const ciphertext = await encryptValue(data.password, encKey);
+        await db.from("wifi_accounts").upsert({
+          student_id: student.id,
+          username: data.username,
+          password_hash: hash,
+          router_password_ciphertext: ciphertext,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "student_id" });
+      } catch (wifiErr) {
+        // Log but don't fail — student account is already created
+        console.error("wifi_accounts upsert failed:", wifiErr);
+      }
+    }
+
     // Send welcome SMS synchronously so it completes before the response
     try {
       const welcomeMsg =
@@ -207,13 +227,23 @@ export const resetStudentPassword = createServerFn({ method: "POST" })
       .eq("id", data.studentId);
     if (error) throw new Error(error.message);
 
-    // Also update wifi_accounts password_hash so login still works
-    // Clear router_password_ciphertext so next wifi login re-encrypts with new password
+    // Also update wifi_accounts so the router provisioning stays in sync.
+    // Re-encrypt the new plaintext password so MikroTik can update immediately.
+    const encKey = process.env.ROUTER_PASSWORD_ENCRYPTION_KEY;
+    let routerCiphertext: string | null = null;
+    if (encKey) {
+      try {
+        routerCiphertext = await encryptValue(data.newPassword, encKey);
+      } catch (e) {
+        console.error("Failed to encrypt router password:", e);
+      }
+    }
+
     await db
       .from("wifi_accounts")
       .update({
         password_hash: hash,
-        router_password_ciphertext: null,
+        router_password_ciphertext: routerCiphertext,
         updated_at: new Date().toISOString()
       })
       .eq("student_id", data.studentId);
