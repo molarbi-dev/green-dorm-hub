@@ -79,7 +79,12 @@ function Login() {
               username: trimmedUsername,
             }));
           } catch {}
-          navigate({ to: "/student-home" });
+          // Gate: only active students go to student-home
+          if (student.activationStatus === "active") {
+            navigate({ to: "/student-home" });
+          } else {
+            navigate({ to: "/activate" });
+          }
         },
         onError: (err) => setErrorMsg(err.message),
       });

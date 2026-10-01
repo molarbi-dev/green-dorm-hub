@@ -31,7 +31,7 @@ export const loginStudent = createServerFn({ method: "POST" })
     const db = getSupabaseAdmin();
     const { data: student } = await db
       .from("students")
-      .select("id, full_name, username, password_hash")
+      .select("id, full_name, username, password_hash, activation_status")
       .eq("username", data.username)
       .maybeSingle();
 
@@ -41,7 +41,11 @@ export const loginStudent = createServerFn({ method: "POST" })
     const valid = await verifyPassword(data.password, hash);
     if (!valid) throw new Error("Invalid username or password.");
 
-    return { id: student.id, fullName: student.full_name };
+    return {
+      id: student.id,
+      fullName: student.full_name,
+      activationStatus: (student as any).activation_status as "unpaid" | "pending" | "active",
+    };
   });
 
 // ── Create first admin (only works when no admins exist yet) ──────────────────

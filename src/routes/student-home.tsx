@@ -39,6 +39,10 @@ function StudentHome() {
       sessionStorage.removeItem("sme_student_id");
       navigate({ to: "/" });
     }
+    // Gate: redirect to activation page if not yet active
+    if (!isLoading && student && (student as any).activation_status !== "active") {
+      navigate({ to: "/activate" });
+    }
   }, [isLoading, student, currentId]);
 
   function signOut() {

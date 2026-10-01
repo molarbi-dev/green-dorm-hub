@@ -10,6 +10,7 @@ import building from "@/assets/building.jpg";
 import { useRegisterStudent, useRooms, useMeters, useSettings, usePolicies } from "@/lib/queries";
 import { uploadToImgur } from "@/lib/imgur";
 import { ALL_COURSES, LEVELS } from "@/lib/constants";
+import { getPaystackPublicKey, initializeActivationPayment, verifyActivationPayment } from "@/lib/api/activation.functions";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -127,7 +128,7 @@ function Onboarding() {
   const stepLabels: { n: Step; label: string }[] = [
     { n: 1, label: "Your details" },
     { n: 2, label: "Policy" },
-    { n: 3, label: "Done" },
+    { n: 3, label: "Activate" },
   ];
 
   return (
@@ -371,12 +372,13 @@ function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP 3: WhatsApp + system activation notice ── */}
+          {/* ── STEP 3: Payment ── */}
           {step === 3 && (
-            <WhatsAppStep
+            <PaymentStep
               form={form}
+              studentId={createdStudentId!}
               settings={settings}
-              onEnter={() => navigate({ to: "/student-home" })}
+              onActivated={() => navigate({ to: "/student-home" })}
             />
           )}
         </div>
@@ -429,11 +431,119 @@ function SelectField({ icon: Icon, label, options, placeholder, ...props }: {
   );
 }
 
-function WhatsAppStep({ form, settings, onEnter }: {
-  form: Form; settings: any; onEnter: () => void;
+// ── Payment Step ──────────────────────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    PaystackPop?: {
+      setup(opts: {
+        key: string;
+        email: string;
+        amount: number;
+        currency: string;
+        ref: string;
+        metadata?: Record<string, unknown>;
+        onClose: () => void;
+        callback: (response: { reference: string }) => void;
+      }): { openIframe(): void };
+    };
+  }
+}
+
+function PaymentStep({
+  form,
+  studentId,
+  onActivated,
+  settings,
+}: {
+  form: Form;
+  studentId: string;
+  onActivated: () => void;
+  settings: any;
 }) {
   const [joined, setJoined] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "paying" | "verifying" | "done" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const channelUrl = settings?.whatsapp_channel_url ?? "https://whatsapp.com/channel/";
+
+  async function handlePay() {
+    setStatus("loading");
+    setErrorMsg(null);
+
+    try {
+      // Load Paystack inline script if not already loaded
+      if (!window.PaystackPop) {
+        await new Promise<void>((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://js.paystack.co/v1/inline.js";
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error("Failed to load payment provider."));
+          document.head.appendChild(s);
+        });
+      }
+
+      // Get public key and initialize payment record
+      const [{ publicKey }, { reference, email, amount }] = await Promise.all([
+        getPaystackPublicKey(),
+        initializeActivationPayment({ data: { student_id: studentId } }),
+      ]);
+
+      setStatus("paying");
+
+      const handler = window.PaystackPop!.setup({
+        key: publicKey,
+        email,
+        amount,
+        currency: "GHS",
+        ref: reference,
+        metadata: { student_id: studentId, purpose: "activation" },
+        onClose: () => {
+          setStatus("idle");
+          setErrorMsg("Payment was cancelled. Click 'Pay GHS 80' to try again.");
+        },
+        callback: async (response) => {
+          setStatus("verifying");
+          try {
+            const result = await verifyActivationPayment({
+              data: { reference: response.reference, student_id: studentId },
+            });
+            if (result.status === "active") {
+              setStatus("done");
+              setTimeout(onActivated, 1500);
+            } else if (result.status === "failed") {
+              setStatus("error");
+              setErrorMsg(result.message);
+            } else {
+              setStatus("idle");
+              setErrorMsg("Payment is being processed. Please wait a moment then sign in.");
+            }
+          } catch (_) {
+            setStatus("idle");
+            setErrorMsg("Could not verify payment. If you paid, your account will activate shortly.");
+          }
+        },
+      });
+
+      handler.openIframe();
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    }
+  }
+
+  if (status === "done") {
+    return (
+      <div className="space-y-5 text-center">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-primary/10 text-primary mx-auto">
+          <CheckCircle2 className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-semibold">Account Activated!</h2>
+        <p className="text-sm text-muted-foreground">
+          Welcome to SME Hostels, {form.fullName.split(" ")[0]}. Redirecting you now…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -442,63 +552,73 @@ function WhatsAppStep({ form, settings, onEnter }: {
           <MessageCircle className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold">Join our WhatsApp channel</h2>
-          <p className="text-sm text-muted-foreground">Required before accessing the portal.</p>
+          <h2 className="text-xl font-semibold">Almost there!</h2>
+          <p className="text-sm text-muted-foreground">Join our channel, then activate your account.</p>
         </div>
       </div>
 
-      {/* WhatsApp channel card */}
-      <div className="rounded-2xl border-2 border-[#25D366]/40 bg-[#25D366]/5 p-5">
-        <p className="text-sm text-muted-foreground mb-4">
-          All official hostel announcements, important updates, and urgent notices are sent through our WhatsApp channel.
-          You <strong>must</strong> join to stay informed.
+      {/* WhatsApp join */}
+      <div className="rounded-2xl border-2 border-[#25D366]/40 bg-[#25D366]/5 p-4 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Join our WhatsApp channel to receive hostel announcements and updates.
         </p>
-        <a
-          href={channelUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white shadow-soft hover:opacity-90 transition">
+        <a href={channelUrl} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition">
           <MessageCircle className="h-4 w-4" />
-          Tap here to join {settings?.hostel_name ?? "SME Hostels"} channel
+          Join {settings?.hostel_name ?? "SME Hostels"} channel
         </a>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-white/60 p-3">
+          <input type="checkbox" checked={joined} onChange={(e) => setJoined(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[oklch(0.68_0.17_145)]" />
+          <span className="text-xs text-muted-foreground">
+            I have joined the SME Hostels WhatsApp channel.
+          </span>
+        </label>
       </div>
 
-      {/* Confirmation checkbox — button stays disabled until ticked */}
-      <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-secondary/60 p-4">
-        <input type="checkbox" checked={joined} onChange={(e) => setJoined(e.target.checked)}
-          className="mt-1 h-4 w-4 accent-[oklch(0.68_0.17_145)]" />
-        <span className="text-sm">
-          I, <strong>{form.fullName}</strong>, confirm that I have joined the SME Hostels WhatsApp channel.
-        </span>
-      </label>
-
-
-      {/* GHS 80 activation info — coming soon, not pay now */}
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-bold text-foreground">System Activation — GHS 80</span>
+      {/* Payment card */}
+      <div className={`rounded-2xl border border-border bg-white/70 p-5 space-y-3 transition ${!joined ? "opacity-50 pointer-events-none" : ""}`}>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Activation fee</span>
+          <span className="font-bold text-lg text-primary">GHS 80</span>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          When the full system is live, activating your account will cost <strong>GHS 80</strong> — which includes your <strong>first week of Wi-Fi free</strong> and your <strong>first-time prepaid electricity top-up free</strong>.
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          You don't need to pay anything right now. We'll notify you via SMS on <strong>{form.phone}</strong> once everything is ready.
+        <div className="border-t border-border/60 pt-3 space-y-2">
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide">What you get</p>
+          {[
+            "First week of Wi-Fi access free",
+            "First prepaid electricity top-up free",
+            "Electricity meter info & top-up history",
+            "Internship opportunities portal",
+            "Transport agencies & schedules",
+            "Hostel announcements & emergency contacts",
+          ].map((benefit) => (
+            <div key={benefit} className="flex items-center gap-2 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span>{benefit}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground border-t border-border/60 pt-3">
+          Secure payment via Paystack. Supports Mobile Money and cards.
         </p>
       </div>
+
+      {errorMsg && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          {errorMsg}
+        </div>
+      )}
 
       <button
-        onClick={() => {
-          if (!joined) return;
-          onEnter();
-        }}
-        disabled={!joined}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[oklch(0.68_0.17_145)] px-5 py-4 text-base font-bold text-white shadow-soft transition hover:opacity-95 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50">
-        <CheckCircle2 className="h-5 w-5" /> Activate System
+        onClick={handlePay}
+        disabled={!joined || status === "loading" || status === "paying" || status === "verifying"}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-primary px-5 py-4 text-base font-bold text-primary-foreground shadow-soft transition hover:opacity-95 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {status === "loading" && <><Loader2 className="h-4 w-4 animate-spin" /> Loading…</>}
+        {status === "paying" && <><Loader2 className="h-4 w-4 animate-spin" /> Opening payment…</>}
+        {status === "verifying" && <><Loader2 className="h-4 w-4 animate-spin" /> Verifying…</>}
+        {(status === "idle" || status === "error") && <>Pay GHS 80 to activate</>}
       </button>
-      {!joined && (
-        <p className="text-center text-xs text-muted-foreground">Join the WhatsApp channel above to activate.</p>
-      )}
     </div>
   );
 }

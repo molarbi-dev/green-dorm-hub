@@ -15,5 +15,7 @@ export function getEnv() {
     HUBTEL_CLIENT_ID:          process.env.HUBTEL_CLIENT_ID          ?? "",
     HUBTEL_CLIENT_SECRET:      process.env.HUBTEL_CLIENT_SECRET      ?? "",
     ADMIN_SETUP_KEY:           process.env.ADMIN_SETUP_KEY           ?? "",
+    PAYSTACK_SECRET_KEY:       process.env.PAYSTACK_SECRET_KEY       ?? "",
+    PAYSTACK_PUBLIC_KEY:       process.env.PAYSTACK_PUBLIC_KEY       ?? "",
   };
 }
