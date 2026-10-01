@@ -36,7 +36,7 @@ export const getPaystackPublicKey = createServerFn({ method: "GET" })
 // ── 2. Initialize — create DB row, return reference to browser ────────────────
 
 export const initializeActivationPayment = createServerFn({ method: "POST" })
-  .validator(z.object({ student_id: z.string().min(1) }))
+  .inputValidator(z.object({ student_id: z.string().min(1) }))
   .handler(async ({ data }): Promise<{
     reference: string;
     email: string;
@@ -94,7 +94,7 @@ export const initializeActivationPayment = createServerFn({ method: "POST" })
 // ── 3. Verify — called by UI after popup closes ───────────────────────────────
 
 export const verifyActivationPayment = createServerFn({ method: "POST" })
-  .validator(z.object({
+  .inputValidator(z.object({
     reference: z.string().min(1),
     student_id: z.string().min(1),
   }))
