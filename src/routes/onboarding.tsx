@@ -501,12 +501,11 @@ function PaymentStep({
           setStatus("idle");
           setErrorMsg("Payment was cancelled. Click 'Pay GHS 80' to try again.");
         },
-        callback: async (response) => {
+        callback: (response: { reference: string }) => {
           setStatus("verifying");
-          try {
-            const result = await verifyActivationPayment({
-              data: { reference: response.reference, student_id: studentId },
-            });
+          verifyActivationPayment({
+            data: { reference: response.reference, student_id: studentId },
+          }).then((result) => {
             if (result.status === "active") {
               setStatus("done");
               setTimeout(onActivated, 1500);
@@ -517,10 +516,10 @@ function PaymentStep({
               setStatus("idle");
               setErrorMsg("Payment is being processed. Please wait a moment then sign in.");
             }
-          } catch (_) {
+          }).catch(() => {
             setStatus("idle");
             setErrorMsg("Could not verify payment. If you paid, your account will activate shortly.");
-          }
+          });
         },
       });
 

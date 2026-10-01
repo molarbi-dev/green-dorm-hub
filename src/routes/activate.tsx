@@ -107,12 +107,11 @@ function ActivatePage() {
           setStatus("idle");
           setErrorMsg("Payment was cancelled. Tap 'Pay GHS 80' to try again.");
         },
-        callback: async (response) => {
+        callback: (response: { reference: string }) => {
           setStatus("verifying");
-          try {
-            const result = await verifyActivationPayment({
-              data: { reference: response.reference, student_id: studentId },
-            });
+          verifyActivationPayment({
+            data: { reference: response.reference, student_id: studentId },
+          }).then((result) => {
             if (result.status === "active") {
               setStatus("done");
               setTimeout(() => navigate({ to: "/student-home" }), 1500);
@@ -123,10 +122,10 @@ function ActivatePage() {
               setStatus("idle");
               setErrorMsg("Payment is processing. Please wait a moment then sign in again.");
             }
-          } catch (_) {
+          }).catch(() => {
             setStatus("idle");
             setErrorMsg("Could not verify payment. If you paid, your account will activate shortly — sign in again to check.");
-          }
+          });
         },
       }).openIframe();
     } catch (err) {
