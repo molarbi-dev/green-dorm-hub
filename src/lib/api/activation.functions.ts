@@ -291,24 +291,31 @@ export const verifyActivationPayment = createServerFn({ method: "POST" })
       p_paid_at: tx.paid_at,
     });
 
-    if (result === "settled" || result === "duplicate") {
+    if (result === "settled") {
       try {
         const { data: student } = await db
           .from("students")
-          .select("full_name, phone")
+          .select("full_name, phone, room_no, meter_no")
           .eq("id", data.student_id)
           .single();
         if (student?.phone) {
           await sendSms({
             to: student.phone,
             message:
-              `Congratulations ${student.full_name.split(" ")[0]}! ` +
-              `Your SME Hostels account is now activated. ` +
-              `You can now access all features at https://sme-hostel.site`,
+              `Welcome to SME Hostels, ${student.full_name.split(" ")[0]}! ` +
+              `Your account is now activated. ` +
+              `Student ID: ${data.student_id}. ` +
+              `Room: ${(student as any).room_no ?? "TBA"}. ` +
+              `Electricity Meter: ${(student as any).meter_no ?? "TBA"}. ` +
+              `Sign in at https://sme-hostel.site`,
           });
         }
       } catch (_) {}
       return { status: "active", message: "Account activated successfully." };
+    }
+
+    if (result === "duplicate") {
+      return { status: "active", message: "Account already activated." };
     }
 
     return { status: "pending", message: "Payment not confirmed yet. Check back shortly." };

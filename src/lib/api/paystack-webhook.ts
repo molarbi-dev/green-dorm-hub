@@ -113,7 +113,7 @@ export async function handlePaystackWebhook(request: Request): Promise<Response>
       if (payment?.student_id) {
         const { data: student } = await db
           .from("students")
-          .select("full_name, phone")
+          .select("id, full_name, phone, room_no, meter_no")
           .eq("id", payment.student_id)
           .single();
 
@@ -121,8 +121,11 @@ export async function handlePaystackWebhook(request: Request): Promise<Response>
           await sendSms({
             to: student.phone,
             message:
-              `Congratulations ${student.full_name.split(" ")[0]}! ` +
-              `Your SME Hostels account is now activated. ` +
+              `Welcome to SME Hostels, ${student.full_name.split(" ")[0]}! ` +
+              `Your account is now activated. ` +
+              `Student ID: ${student.id}. ` +
+              `Room: ${(student as any).room_no ?? "TBA"}. ` +
+              `Electricity Meter: ${(student as any).meter_no ?? "TBA"}. ` +
               `Sign in at https://sme-hostel.site`,
           });
         }

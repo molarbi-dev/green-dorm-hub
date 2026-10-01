@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "../supabase.server";
 import { hashPassword, verifyPassword, encryptValue } from "../crypto.server";
 import { getEnv } from "../env.server";
-import { sendSms } from "../mnotify.server";
 // ── Admin login ───────────────────────────────────────────────────────────────
 
 export const loginAdmin = createServerFn({ method: "POST" })
@@ -175,7 +174,6 @@ export const registerStudent = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Upsert wifi_accounts so the router provisioning service can authenticate this student.
-    // encrypt the plaintext password with the shared ROUTER_PASSWORD_ENCRYPTION_KEY.
     const encKey = process.env.ROUTER_PASSWORD_ENCRYPTION_KEY;
     if (encKey) {
       try {
@@ -189,25 +187,8 @@ export const registerStudent = createServerFn({ method: "POST" })
           updated_at: new Date().toISOString(),
         }, { onConflict: "student_id" });
       } catch (wifiErr) {
-        // Log but don't fail — student account is already created
         console.error("wifi_accounts upsert failed:", wifiErr);
       }
-    }
-
-    // Send welcome SMS synchronously so it completes before the response
-    try {
-      const welcomeMsg =
-        `Welcome to SME Hostels, ${data.full_name.split(" ")[0]}! ` +
-        `Your account has been created. ` +
-        `Student ID: ${student.id}. ` +
-        `Room: ${data.room_no ?? "TBA"}. ` +
-        `Electricity Meter: ${data.meter_no ?? "TBA"}. ` +
-        `We'll notify you via SMS when the system is fully ready for you to activate. ` +
-        `Check back: https://sme-hostel.site`;
-      await sendSms({ to: data.phone, message: welcomeMsg });
-    } catch (smsErr) {
-      // Log but don't fail — account is already created
-      console.error("Welcome SMS failed:", smsErr);
     }
 
     return { id: student.id, full_name: student.full_name };
