@@ -1,74 +1,97 @@
 /**
- * Paystack Popup v2 helper.
+ * Paystack Inline v2 helper.
  *
- * CDN: https://js.paystack.co/v2/popup.js
- * API: new Popup(config) then popup.open()
- * Callbacks: callback (success), onClose (cancelled)
- * Falls back to hosted authorization_url if popup fails.
+ * Script:  https://js.paystack.co/v2/inline.js
+ * Global:  window.PaystackPop  (constructor)
+ *
+ * Primary flow (server-initialized):
+ *   1. Backend calls POST /transaction/initialize → returns access_code
+ *   2. Frontend calls loadPaystackInline() to ensure script is ready
+ *   3. Frontend calls new PaystackPop()
+ *   4. popup.resumeTransaction(accessCode, { onSuccess, onCancel, onError })
+ *
+ * Fallback:
+ *   If resumeTransaction is unavailable, redirect to authorizationUrl.
+ *
+ * Removed: Popup, popup.js, callback, onClose (all v1 / wrong-script artifacts).
  */
 
 export type PaystackTx = { reference: string; status?: string };
 
-type PopupConfig = {
-  key: string;
-  email: string;
-  amount: number;
-  currency: string;
-  ref: string;
-  channels: string[];
-  metadata?: Record<string, unknown>;
-  callback: (tx: PaystackTx) => void;
-  onClose: () => void;
-};
+// Verified against alexasomba/paystack-inline TypeScript wrapper
+// and Paystack v2 inline.js runtime behaviour.
+interface PaystackPopInstance {
+  resumeTransaction(
+    accessCode: string,
+    callbacks?: {
+      onSuccess?: (tx: PaystackTx) => void;
+      onCancel?: () => void;
+      onError?: (err: { message?: string } | string) => void;
+    },
+  ): void;
+}
 
-type PopupInstance = {
-  open: () => void;
-};
-
-type PopupConstructor = new (config: PopupConfig) => PopupInstance;
+interface PaystackPopConstructor {
+  new (): PaystackPopInstance;
+}
 
 declare global {
   interface Window {
-    Popup?: PopupConstructor;
+    PaystackPop?: PaystackPopConstructor;
   }
 }
 
+// ── Load ──────────────────────────────────────────────────────────────────────
+
 export function loadPaystackInline(): Promise<void> {
-  if (typeof window === "undefined") return Promise.reject(new Error("Not in browser."));
-  if (window.Popup) return Promise.resolve();
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("loadPaystackInline must be called in the browser."));
+  }
 
-  const existing = document.querySelector<HTMLScriptElement>('script[src*="js.paystack.co"]');
-  if (existing) return waitForPopup();
+  // Already loaded
+  if (window.PaystackPop) return Promise.resolve();
 
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://js.paystack.co/v2/popup.js";
-    s.async = true;
-    s.onload = () => waitForPopup().then(resolve, reject);
-    s.onerror = () => reject(new Error("Failed to load payment provider."));
-    document.head.appendChild(s);
+  // Script tag already injected — wait for it
+  if (document.querySelector('script[src*="js.paystack.co/v2/inline.js"]')) {
+    return waitForPaystackPop();
+  }
+
+  return new Promise(function (resolve, reject) {
+    var script = document.createElement("script");
+    script.src = "https://js.paystack.co/v2/inline.js";
+    script.async = true;
+    script.onload = function () {
+      waitForPaystackPop().then(resolve, reject);
+    };
+    script.onerror = function () {
+      reject(new Error("Failed to load Paystack. Check your internet connection."));
+    };
+    document.head.appendChild(script);
   });
 }
 
-function waitForPopup(timeoutMs = 8000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const tick = () => {
-      if (window.Popup) { resolve(); return; }
-      if (Date.now() - start > timeoutMs) {
-        reject(new Error("Payment provider did not finish loading."));
+function waitForPaystackPop(timeoutMs?: number): Promise<void> {
+  var limit = timeoutMs !== undefined ? timeoutMs : 8000;
+  return new Promise(function (resolve, reject) {
+    var start = Date.now();
+    function tick() {
+      if (window.PaystackPop) { resolve(); return; }
+      if (Date.now() - start > limit) {
+        reject(new Error("Paystack did not finish loading. Please try again."));
         return;
       }
       window.setTimeout(tick, 50);
-    };
+    }
     tick();
   });
 }
 
+// ── Start checkout ────────────────────────────────────────────────────────────
+
 export function startPaystackCheckout(opts: {
-  publicKey: string;
-  email: string;
-  amount: number;
+  publicKey: string;       // kept in signature for API compatibility, not used with resumeTransaction
+  email: string;           // kept for API compatibility
+  amount: number;          // kept for API compatibility
   reference: string;
   accessCode?: string;
   authorizationUrl?: string;
@@ -77,37 +100,39 @@ export function startPaystackCheckout(opts: {
   onCancel: () => void;
   onError: (message: string) => void;
 }): void {
-  if (!window.Popup) {
-    if (opts.authorizationUrl) {
-      window.location.assign(opts.authorizationUrl);
+
+  // Primary: resumeTransaction with server-issued access code
+  if (opts.accessCode && window.PaystackPop) {
+    try {
+      var popup = new window.PaystackPop();
+      popup.resumeTransaction(opts.accessCode, {
+        onSuccess: function (tx) {
+          opts.onSuccess({
+            reference: (tx && tx.reference) ? tx.reference : opts.reference,
+            status: (tx && tx.status) ? tx.status : "success",
+          });
+        },
+        onCancel: function () {
+          opts.onCancel();
+        },
+        onError: function (err) {
+          var message = typeof err === "string"
+            ? err
+            : (err && err.message ? err.message : "Payment failed.");
+          opts.onError(message);
+        },
+      });
       return;
+    } catch (err) {
+      console.warn("[paystack] resumeTransaction threw, falling back to hosted checkout:", err);
     }
-    opts.onError("Payment provider not loaded. Please try again.");
+  }
+
+  // Fallback: hosted checkout page
+  if (opts.authorizationUrl) {
+    window.location.assign(opts.authorizationUrl);
     return;
   }
 
-  try {
-    const popup = new window.Popup({
-      key: opts.publicKey,
-      email: opts.email,
-      amount: opts.amount,
-      currency: "GHS",
-      ref: opts.reference,
-      channels: ["card", "mobile_money"],
-      metadata: opts.metadata,
-      callback: function(tx) {
-        opts.onSuccess({ reference: tx?.reference || opts.reference, status: tx?.status });
-      },
-      onClose: function() {
-        opts.onCancel();
-      },
-    });
-    popup.open();
-  } catch (err) {
-    if (opts.authorizationUrl) {
-      window.location.assign(opts.authorizationUrl);
-      return;
-    }
-    opts.onError(err instanceof Error ? err.message : "Payment popup failed.");
-  }
+  opts.onError("Could not open payment. Please try again.");
 }
