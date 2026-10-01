@@ -436,16 +436,16 @@ function SelectField({ icon: Icon, label, options, placeholder, ...props }: {
 declare global {
   interface Window {
     PaystackPop?: {
-      setup(opts: {
+      newTransaction(opts: {
         key: string;
         email: string;
         amount: number;
         currency: string;
         ref: string;
         metadata?: Record<string, unknown>;
-        onClose: () => void;
-        callback: (response: { reference: string }) => void;
-      }): { openIframe(): void };
+        onCancel: () => void;
+        onSuccess: (response: { reference: string; status: string }) => void;
+      }): void;
     };
   }
 }
@@ -475,14 +475,13 @@ function PaymentStep({
       if (!window.PaystackPop) {
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement("script");
-          s.src = "https://js.paystack.co/v1/inline.js";
+          s.src = "https://js.paystack.co/v2/inline.js";
           s.onload = () => resolve();
           s.onerror = () => reject(new Error("Failed to load payment provider."));
           document.head.appendChild(s);
         });
       }
 
-      // Get public key and initialize payment record
       const [{ publicKey }, { reference, email, amount }] = await Promise.all([
         getPaystackPublicKey(),
         initializeActivationPayment({ data: { student_id: studentId } }),
@@ -490,18 +489,18 @@ function PaymentStep({
 
       setStatus("paying");
 
-      const handler = window.PaystackPop!.setup({
+      window.PaystackPop!.newTransaction({
         key: publicKey,
         email,
         amount,
         currency: "GHS",
         ref: reference,
         metadata: { student_id: studentId, purpose: "activation" },
-        onClose: () => {
+        onCancel: () => {
           setStatus("idle");
           setErrorMsg("Payment was cancelled. Click 'Pay GHS 80' to try again.");
         },
-        callback: (response: { reference: string }) => {
+        onSuccess: (response) => {
           setStatus("verifying");
           verifyActivationPayment({
             data: { reference: response.reference, student_id: studentId },
@@ -522,8 +521,6 @@ function PaymentStep({
           });
         },
       });
-
-      handler.openIframe();
     } catch (err) {
       setStatus("error");
       setErrorMsg(err instanceof Error ? err.message : "Something went wrong. Please try again.");
