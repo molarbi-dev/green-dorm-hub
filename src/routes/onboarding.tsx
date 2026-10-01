@@ -10,7 +10,8 @@ import building from "@/assets/building.jpg";
 import { useRegisterStudent, useRooms, useMeters, useSettings, usePolicies } from "@/lib/queries";
 import { uploadToImgur } from "@/lib/imgur";
 import { ALL_COURSES, LEVELS } from "@/lib/constants";
-import { getPaystackPublicKey, initializeActivationPayment, verifyActivationPayment } from "@/lib/api/activation.functions";
+import { initializeActivationPayment, verifyActivationPayment } from "@/lib/api/activation.functions";
+import { loadPaystackInline, startPaystackCheckout } from "@/lib/paystack-popup";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -433,23 +434,6 @@ function SelectField({ icon: Icon, label, options, placeholder, ...props }: {
 
 // ── Payment Step ──────────────────────────────────────────────────────────────
 
-declare global {
-  interface Window {
-    PaystackPop?: new () => {
-      newTransaction(opts: {
-        key: string;
-        email: string;
-        amount: number;
-        currency: string;
-        ref: string;
-        metadata?: Record<string, unknown>;
-        onCancel: () => void;
-        onSuccess: (response: { reference: string; status: string }) => void;
-      }): void;
-    };
-  }
-}
-
 function PaymentStep({
   form,
   studentId,
@@ -471,35 +455,32 @@ function PaymentStep({
     setErrorMsg(null);
 
     try {
-      // Load Paystack inline script if not already loaded
-      if (!window.PaystackPop) {
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement("script");
-          s.src = "https://js.paystack.co/v2/inline.js";
-          s.onload = () => resolve();
-          s.onerror = () => reject(new Error("Failed to load payment provider."));
-          document.head.appendChild(s);
-        });
-      }
+      await loadPaystackInline();
 
-      const [{ publicKey }, { reference, email, amount }] = await Promise.all([
-        getPaystackPublicKey(),
-        initializeActivationPayment({ data: { student_id: studentId } }),
-      ]);
+      const checkout = await initializeActivationPayment({
+        data: {
+          student_id: studentId,
+          callback_url: `${window.location.origin}/payment-callback`,
+        },
+      });
 
       setStatus("paying");
 
-      const paystack = new window.PaystackPop!();
-      paystack.newTransaction({
-        key: publicKey,
-        email,
-        amount,
-        currency: "GHS",
-        ref: reference,
+      startPaystackCheckout({
+        publicKey: checkout.publicKey,
+        email: checkout.email,
+        amount: checkout.amount,
+        reference: checkout.reference,
+        accessCode: checkout.accessCode,
+        authorizationUrl: checkout.authorizationUrl,
         metadata: { student_id: studentId, purpose: "activation" },
         onCancel: () => {
           setStatus("idle");
           setErrorMsg("Payment was cancelled. Click 'Pay GHS 80' to try again.");
+        },
+        onError: (message) => {
+          setStatus("error");
+          setErrorMsg(message);
         },
         onSuccess: (response) => {
           setStatus("verifying");

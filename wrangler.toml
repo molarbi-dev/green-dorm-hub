@@ -13,7 +13,7 @@ ADMIN_SETUP_KEY = "sme-setup-2024"
 VITE_IMGUR_CLIENT_ID = "f121133fedaa48b"
 # Paystack public key — safe to commit, used in browser popup only
 # Replace with pk_live_... when going live
-PAYSTACK_PUBLIC_KEY = "pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+PAYSTACK_PUBLIC_KEY = "pk_test_9fd7d5522fb5e34500975623ed69f9a70f86efdd"
 
 # Secret names listed here so nodejs_compat maps them at runtime.
 # Actual values go in Cloudflare dashboard → Workers → Settings → Secrets.

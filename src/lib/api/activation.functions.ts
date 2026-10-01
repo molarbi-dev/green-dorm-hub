@@ -5,7 +5,7 @@
  *
  * Flow:
  *  1. getPaystackPublicKey        — returns pk_test_/pk_live_ to browser
- *  2. initializeActivationPayment — creates DB row + reference, browser opens Paystack popup
+ *  2. initializeActivationPayment — creates DB row, calls Paystack initialize, returns access_code
  *  3. verifyActivationPayment     — called after popup closes, verifies with Paystack, settles
  *  4. /api/paystack/webhook       — backup: settles if browser callback is missed
  */
@@ -35,13 +35,91 @@ export const getPaystackPublicKey = createServerFn({ method: "GET" })
 
 // ── 2. Initialize — create DB row, return reference to browser ────────────────
 
+function paystackEmail(username: string, studentId: string): string {
+  const local = (username || studentId).toLowerCase().replace(/[^a-z0-9._-]/g, "") || "student";
+  return `${local}@students.sme-hostel.site`;
+}
+
+function safeCallbackUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname !== "/payment-callback") return undefined;
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+type PaystackInitResponse = {
+  status: boolean;
+  message?: string;
+  data?: {
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  };
+};
+
+async function paystackInitialize(opts: {
+  secret: string;
+  email: string;
+  reference: string;
+  studentId: string;
+  callbackUrl?: string;
+}): Promise<PaystackInitResponse> {
+  const body: Record<string, unknown> = {
+    email: opts.email,
+    amount: ACTIVATION_FEE_PESEWAS,
+    currency: "GHS",
+    reference: opts.reference,
+    channels: ["card", "mobile_money"],
+    metadata: {
+      student_id: opts.studentId,
+      purpose: "activation",
+      custom_fields: [
+        { display_name: "Student ID", variable_name: "student_id", value: opts.studentId },
+      ],
+    },
+  };
+  if (opts.callbackUrl) body.callback_url = opts.callbackUrl;
+
+  const res = await fetch("https://api.paystack.co/transaction/initialize", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${opts.secret}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as PaystackInitResponse;
+  } catch {
+    return { status: false, message: "Paystack initialize failed." };
+  }
+}
+
 export const initializeActivationPayment = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ student_id: z.string().min(1) }))
+  .inputValidator(z.object({
+    student_id: z.string().min(1),
+    callback_url: z.string().url().optional(),
+  }))
   .handler(async ({ data }): Promise<{
     reference: string;
     email: string;
     amount: number;
+    publicKey: string;
+    accessCode: string;
+    authorizationUrl: string;
   }> => {
+    const env = getEnv();
+    if (!env.PAYSTACK_SECRET_KEY || !env.PAYSTACK_PUBLIC_KEY) {
+      throw new Error("Payment provider not configured.");
+    }
+
     const db = getSupabaseAdmin();
 
     const { data: student, error: stuErr } = await db
@@ -63,13 +141,9 @@ export const initializeActivationPayment = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
 
-    let reference: string;
+    let reference = existing?.reference ?? makeReference(student.id);
 
-    if (existing) {
-      reference = existing.reference;
-    } else {
-      reference = makeReference(student.id);
-
+    if (!existing) {
       const { error: insErr } = await db.from("activation_payments").insert({
         student_id: data.student_id,
         reference,
@@ -85,10 +159,53 @@ export const initializeActivationPayment = createServerFn({ method: "POST" })
         .eq("id", data.student_id);
     }
 
-    // Paystack requires an email — generate placeholder
-    const email = `${student.username}@students.sme-hostel.site`;
+    const email = paystackEmail(student.username ?? "", student.id);
+    const callbackUrl = safeCallbackUrl(data.callback_url);
 
-    return { reference, email, amount: ACTIVATION_FEE_PESEWAS };
+    let init = await paystackInitialize({
+      secret: env.PAYSTACK_SECRET_KEY,
+      email,
+      reference,
+      studentId: data.student_id,
+      callbackUrl,
+    });
+
+    // Same reference already used on Paystack — start a fresh pending row
+    if (!init.status || !init.data) {
+      const msg = (init.message ?? "").toLowerCase();
+      if (existing && (msg.includes("duplicate") || msg.includes("reference"))) {
+        reference = makeReference(student.id);
+        const { error: insErr } = await db.from("activation_payments").insert({
+          student_id: data.student_id,
+          reference,
+          amount_pesewas: ACTIVATION_FEE_PESEWAS,
+          status: "pending",
+          provider: "paystack",
+        });
+        if (insErr) throw new Error("Failed to create payment record.");
+
+        init = await paystackInitialize({
+          secret: env.PAYSTACK_SECRET_KEY,
+          email,
+          reference,
+          studentId: data.student_id,
+          callbackUrl,
+        });
+      }
+    }
+
+    if (!init.status || !init.data) {
+      throw new Error(init.message || "Could not start payment. Please try again.");
+    }
+
+    return {
+      reference: init.data.reference,
+      email,
+      amount: ACTIVATION_FEE_PESEWAS,
+      publicKey: env.PAYSTACK_PUBLIC_KEY,
+      accessCode: init.data.access_code,
+      authorizationUrl: init.data.authorization_url,
+    };
   });
 
 // ── 3. Verify — called by UI after popup closes ───────────────────────────────
