@@ -435,7 +435,7 @@ function SelectField({ icon: Icon, label, options, placeholder, ...props }: {
 
 declare global {
   interface Window {
-    PaystackPop?: {
+    PaystackPop?: new () => {
       newTransaction(opts: {
         key: string;
         email: string;
@@ -489,7 +489,8 @@ function PaymentStep({
 
       setStatus("paying");
 
-      window.PaystackPop!.newTransaction({
+      const paystack = new window.PaystackPop!();
+      paystack.newTransaction({
         key: publicKey,
         email,
         amount,

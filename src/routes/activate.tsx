@@ -24,7 +24,7 @@ export const Route = createFileRoute("/activate")({
 
 declare global {
   interface Window {
-    PaystackPop?: {
+    PaystackPop?: new () => {
       newTransaction(opts: {
         key: string;
         email: string;
@@ -96,7 +96,8 @@ function ActivatePage() {
 
       setStatus("paying");
 
-      window.PaystackPop!.newTransaction({
+      const paystack = new window.PaystackPop!();
+      paystack.newTransaction({
         key: publicKey,
         email,
         amount,
