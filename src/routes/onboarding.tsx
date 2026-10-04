@@ -577,7 +577,7 @@ function PaymentStep({
           ))}
         </div>
         <p className="text-xs text-muted-foreground border-t border-border/60 pt-3">
-          Secure payment via Paystack. Supports Mobile Money and cards.
+          Mobile Money only. Make sure you have at least <strong>GHS 80</strong> on your MoMo wallet before tapping Pay — Paystack will not show a PIN prompt if your balance is insufficient.
         </p>
       </div>
 

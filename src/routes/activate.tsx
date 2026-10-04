@@ -189,8 +189,13 @@ function ActivatePage() {
           </div>
 
           <p className="text-xs text-muted-foreground border-t border-border/60 pt-3">
-            Secure payment via Paystack. Supports Mobile Money and cards.
+            Secure payment via Paystack. Mobile Money only.
           </p>
+
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-800 flex items-start gap-2">
+            <span className="shrink-0 mt-0.5">⚠️</span>
+            <span>Make sure you have at least <strong>GHS 80</strong> on your Mobile Money wallet before tapping Pay. Paystack will not show a PIN prompt if your balance is insufficient.</span>
+          </div>
 
           {errorMsg && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">

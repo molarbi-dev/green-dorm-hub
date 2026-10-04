@@ -74,7 +74,7 @@ async function paystackInitialize(opts: {
     amount: ACTIVATION_FEE_PESEWAS,
     currency: "GHS",
     reference: opts.reference,
-    channels: ["card", "mobile_money"],
+    channels: ["mobile_money"],
     metadata: {
       student_id: opts.studentId,
       purpose: "activation",
