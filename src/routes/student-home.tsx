@@ -479,7 +479,7 @@ function WifiCard({ wifiInfo }: { wifiInfo: any }) {
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition"
       >
         <Wifi className="h-4 w-4" />
-        {isActive ? "Buy another package" : "Buy Wi-Fi package"}
+        {isActive ? "Manage Wi-Fi / Connect" : "Buy Wi-Fi package"}
       </a>
     </div>
   );
