@@ -88,12 +88,6 @@ function waitForPaystackPop(timeoutMs?: number): Promise<void> {
 
 // ── Start checkout ────────────────────────────────────────────────────────────
 
-function isMobile(): boolean {
-  return /android|iphone|ipad|ipod|mobile/i.test(
-    typeof navigator !== "undefined" ? navigator.userAgent : ""
-  );
-}
-
 export function startPaystackCheckout(opts: {
   publicKey: string;
   email: string;
@@ -107,13 +101,7 @@ export function startPaystackCheckout(opts: {
   onError: (message: string) => void;
 }): void {
 
-  // On mobile, inline popup is unreliable — go straight to hosted checkout
-  if (isMobile() && opts.authorizationUrl) {
-    window.location.assign(opts.authorizationUrl);
-    return;
-  }
-
-  // Desktop: resumeTransaction with server-issued access code
+  // Primary: resumeTransaction with server-issued access code (works on desktop & mobile)
   if (opts.accessCode && window.PaystackPop) {
     try {
       var popup = new window.PaystackPop();
@@ -140,7 +128,7 @@ export function startPaystackCheckout(opts: {
     }
   }
 
-  // Final fallback: hosted checkout page
+  // Fallback: hosted checkout page
   if (opts.authorizationUrl) {
     window.location.assign(opts.authorizationUrl);
     return;
