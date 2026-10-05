@@ -1965,13 +1965,15 @@ function WifiSubscriptionsPage() {
 /* =========================  WIFI PAYMENTS  ========================= */
 
 function WifiPaymentsPage() {
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("success");
   const [q, setQ] = useState("");
-  const { data: payments = [], isLoading } = useWifiPayments(statusFilter !== "all" ? statusFilter : undefined);
+  const { data: payments = [], isLoading } = useWifiPayments();
 
-  const filtered = payments.filter((p: any) =>
-    !q || `${p.student_name ?? ""} ${p.reference} ${p.room_no ?? ""} ${p.package_name ?? ""}`.toLowerCase().includes(q.toLowerCase())
-  );
+  const filtered = payments.filter((p: any) => {
+    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchesQuery = !q || `${p.student_name ?? ""} ${p.reference} ${p.room_no ?? ""} ${p.package_name ?? ""}`.toLowerCase().includes(q.toLowerCase());
+    return matchesStatus && matchesQuery;
+  });
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = { success: "bg-primary/10 text-primary", pending: "bg-amber-100 text-amber-700", failed: "bg-destructive/10 text-destructive", refunded: "bg-muted text-muted-foreground" };
