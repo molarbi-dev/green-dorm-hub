@@ -2167,10 +2167,6 @@ function SmsBanner() {
   const updateSettingsMut = useUpdateSettings();
   const [showModal, setShowModal] = useState(false);
 
-  // Calculate end of current month
-  const now = new Date();
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const endOfMonthStr = endOfMonth.toLocaleDateString("en-GH", { day: "numeric", month: "long", year: "numeric" });
 
   const packageName = (settings as any)?.sms_package_name ?? null;
   const expiresAt = (settings as any)?.sms_package_expires_at ?? null;
@@ -2192,8 +2188,23 @@ function SmsBanner() {
             <span className="mx-2 text-muted-foreground">·</span>
             <span className="text-muted-foreground">
               {packageName
-                ? <>{packageName} plan — expires <strong className="text-foreground">{expiresAt ? new Date(expiresAt).toLocaleDateString("en-GH", { day: "numeric", month: "long", year: "numeric" }) : endOfMonthStr}</strong></>
-                : <>Current period ends <strong className="text-foreground">{endOfMonthStr}</strong></>
+                ? (
+                  <>
+                    {packageName} plan
+                    {expiresAt && (
+                      <>
+                        {" · "}
+                        {isExpired
+                          ? <span className="text-destructive font-semibold">Expired</span>
+                          : isExpiringSoon
+                          ? <span className="text-amber-600 font-semibold">Expires in {daysLeft}d</span>
+                          : <>expires <strong className="text-foreground">{new Date(expiresAt).toLocaleDateString("en-GH", { day: "numeric", month: "long", year: "numeric" })}</strong></>
+                        }
+                      </>
+                    )}
+                  </>
+                )
+                : <span>No active plan · <span className="underline underline-offset-2 cursor-pointer" onClick={() => setShowModal(true)}>View plans</span></span>
               }
             </span>
           </div>
@@ -2255,7 +2266,7 @@ function SmsBanner() {
             </div>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              Contact us to activate · Payments processed securely via Hubtel
+              Contact us to activate · SMS delivered via mNotify
             </p>
           </div>
         </div>
