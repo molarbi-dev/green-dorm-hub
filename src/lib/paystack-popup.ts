@@ -88,10 +88,16 @@ function waitForPaystackPop(timeoutMs?: number): Promise<void> {
 
 // ── Start checkout ────────────────────────────────────────────────────────────
 
+function isMobile(): boolean {
+  return /android|iphone|ipad|ipod|mobile/i.test(
+    typeof navigator !== "undefined" ? navigator.userAgent : ""
+  );
+}
+
 export function startPaystackCheckout(opts: {
-  publicKey: string;       // kept in signature for API compatibility, not used with resumeTransaction
-  email: string;           // kept for API compatibility
-  amount: number;          // kept for API compatibility
+  publicKey: string;
+  email: string;
+  amount: number;
   reference: string;
   accessCode?: string;
   authorizationUrl?: string;
@@ -101,7 +107,13 @@ export function startPaystackCheckout(opts: {
   onError: (message: string) => void;
 }): void {
 
-  // Primary: resumeTransaction with server-issued access code
+  // On mobile, inline popup is unreliable — go straight to hosted checkout
+  if (isMobile() && opts.authorizationUrl) {
+    window.location.assign(opts.authorizationUrl);
+    return;
+  }
+
+  // Desktop: resumeTransaction with server-issued access code
   if (opts.accessCode && window.PaystackPop) {
     try {
       var popup = new window.PaystackPop();
@@ -128,7 +140,7 @@ export function startPaystackCheckout(opts: {
     }
   }
 
-  // Fallback: hosted checkout page
+  // Final fallback: hosted checkout page
   if (opts.authorizationUrl) {
     window.location.assign(opts.authorizationUrl);
     return;
