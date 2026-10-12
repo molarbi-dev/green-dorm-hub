@@ -167,6 +167,7 @@ export const registerStudent = createServerFn({ method: "POST" })
         accepted_at: data.accepted_at,
         avatar_url: data.avatar_url ?? null,
         gender: data.gender ?? null,
+        activation_status: "active",
       })
       .select()
       .single();

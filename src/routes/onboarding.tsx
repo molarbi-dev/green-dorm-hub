@@ -119,8 +119,7 @@ function Onboarding() {
           } catch {}
           sessionStorage.setItem("sme_student_id", student.id);
           setCreatedStudentId(student.id);
-          setStep(3);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          navigate({ to: "/student-home" });
         },
       },
     );
@@ -129,7 +128,6 @@ function Onboarding() {
   const stepLabels: { n: Step; label: string }[] = [
     { n: 1, label: "Your details" },
     { n: 2, label: "Policy" },
-    { n: 3, label: "Activate" },
   ];
 
   return (
